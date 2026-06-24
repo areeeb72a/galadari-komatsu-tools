@@ -146,7 +146,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
             <span class="qchip" onclick="quickFill('t1', '6156-11-3300')">6156-11-3300</span>
             <span class="qchip" onclick="quickFill('t1', 'ND499000-6160')">ND499000-6160</span>
           </div>
-          <input id="t1-input" class="tool-input" placeholder="Enter Komatsu Part Number (e.g. 175-32-41261)"/>
+          <input id="t1-input" class="tool-input" placeholder="Part number (175-32-41261) or query (track roller for D155-6)"/>
           <div class="upload-mini" id="t1-upload-zone" onclick="document.getElementById('t1-file').click()">
             <span id="t1-upload-text">📷 Or upload a part label / catalog photo (JPG, PNG)</span>
           </div>
@@ -232,7 +232,7 @@ async function runKomatsu(){
         ]
       }];
     } else {
-      bodyData.messages = [{role: 'user', content: 'Part Number: ' + partNo}];
+      bodyData.messages = [{role: 'user', content: partNo}];
     }
     var res = await fetch('/api/chat', {
       method: 'POST',
