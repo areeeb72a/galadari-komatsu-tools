@@ -188,11 +188,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
           <div class="tool-byline">MULTI-LANGUAGE ENGINE — BY RIZWAN</div>
         </div>
         <div class="tool-body">
-          <div class="tool-desc">Translate your English quotations into Arabic, Urdu, or Hindi for customers — part numbers, prices, and dates stay exact while text is professionally translated.</div>
+          <div class="tool-desc">Translate your English quotations into Arabic or Urdu for customers — part numbers, prices, and dates stay exact while text is professionally translated.</div>
           <select id="t3-lang" class="tool-input" style="margin-bottom:10px">
             <option value="Arabic">🇦🇪 Arabic</option>
             <option value="Urdu">🇵🇰 Urdu</option>
-            <option value="Hindi">🇮🇳 Hindi</option>
           </select>
           <div class="upload-mini" id="t3-upload-zone" onclick="document.getElementById('t3-file').click()">
             <span id="t3-upload-text">📁 Or upload a .txt file</span>
@@ -201,6 +200,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
           <textarea id="t3-input" class="tool-textarea" placeholder="Paste your English quotation text here, or upload a .txt file above..."></textarea>
           <button id="t3-btn" class="tool-btn translate-btn" onclick="runTranslate()">🌐 Translate Quote</button>
           <div id="t3-result" class="tool-result" style="direction:rtl;font-family:'Noto Nastaliq Urdu',sans-serif"></div>
+          <button id="t3-download" class="tool-btn translate-btn" style="display:none;margin-top:10px;background:linear-gradient(135deg,#16a34a,#22c55e)" onclick="downloadTranslatedPdf()">⬇️ Download as PDF</button>
         </div>
       </div>
 
@@ -215,6 +215,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
 function quickFill(id, val){
   document.getElementById(id+'-input').value = val;
@@ -502,6 +503,9 @@ function handleT3File(event){
   reader.readAsText(file);
 }
 
+var lastTranslatedText = '';
+var lastTranslatedLang = '';
+
 async function runTranslate(){
   var text = document.getElementById('t3-input').value.trim();
   var lang = document.getElementById('t3-lang').value;
@@ -509,6 +513,7 @@ async function runTranslate(){
   var btn = document.getElementById('t3-btn');
   btn.textContent = '⏳ Translating...'; btn.disabled = true;
   document.getElementById('t3-result').style.display = 'none';
+  document.getElementById('t3-download').style.display = 'none';
   try{
     var res = await fetch('/api/chat', {
       method: 'POST',
@@ -522,8 +527,68 @@ async function runTranslate(){
     var reply = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text : 'Error. Please try again.';
     document.getElementById('t3-result').style.display = 'block';
     document.getElementById('t3-result').textContent = reply;
+    lastTranslatedText = reply;
+    lastTranslatedLang = lang;
+    document.getElementById('t3-download').style.display = 'block';
   } catch(e){ alert('Network error. Please try again.'); }
   btn.textContent = '🌐 Translate Quote'; btn.disabled = false;
+}
+
+async function downloadTranslatedPdf(){
+  if(!lastTranslatedText){alert('Please translate a document first.');return;}
+  var btn = document.getElementById('t3-download');
+  btn.textContent = '⏳ Generating PDF...'; btn.disabled = true;
+
+  var fontFamily = lastTranslatedLang === 'Urdu' ? "'Noto Nastaliq Urdu', serif" : "'Noto Sans Arabic', sans-serif";
+
+  var renderDiv = document.createElement('div');
+  renderDiv.style.position = 'fixed';
+  renderDiv.style.top = '-9999px';
+  renderDiv.style.left = '0';
+  renderDiv.style.width = '700px';
+  renderDiv.style.padding = '40px';
+  renderDiv.style.background = '#ffffff';
+  renderDiv.style.direction = 'rtl';
+  renderDiv.style.textAlign = 'right';
+  renderDiv.style.fontFamily = fontFamily;
+  renderDiv.style.fontSize = '17px';
+  renderDiv.style.lineHeight = '2';
+  renderDiv.style.color = '#1a1a1a';
+  renderDiv.style.whiteSpace = 'pre-wrap';
+  renderDiv.textContent = lastTranslatedText;
+  document.body.appendChild(renderDiv);
+
+  try{
+    var canvas = await html2canvas(renderDiv, {scale: 2, backgroundColor: '#ffffff'});
+    document.body.removeChild(renderDiv);
+
+    var imgData = canvas.toDataURL('image/png');
+    var doc = new jspdf.jsPDF({unit: 'pt', format: 'a4'});
+    var pageWidth = doc.internal.pageSize.getWidth();
+    var pageHeight = doc.internal.pageSize.getHeight();
+    var imgWidth = pageWidth - 40;
+    var imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+    var heightLeft = imgHeight;
+    var position = 20;
+
+    doc.addImage(imgData, 'PNG', 20, position, imgWidth, imgHeight);
+    heightLeft -= (pageHeight - 40);
+
+    while(heightLeft > 0){
+      position = heightLeft - imgHeight + 20;
+      doc.addPage();
+      doc.addImage(imgData, 'PNG', 20, position, imgWidth, imgHeight);
+      heightLeft -= (pageHeight - 40);
+    }
+
+    doc.save('translated-quote-' + lastTranslatedLang.toLowerCase() + '.pdf');
+  } catch(e){
+    if(document.body.contains(renderDiv)) document.body.removeChild(renderDiv);
+    alert('Error generating PDF. Please try again.');
+  }
+
+  btn.textContent = '⬇️ Download as PDF'; btn.disabled = false;
 }
 </script>
 
