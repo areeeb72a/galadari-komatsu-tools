@@ -87,6 +87,11 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .upload-mini:hover{border-color:var(--accent);color:var(--accent);background:rgba(255,122,0,0.04)}
 .upload-mini.has-file{border-color:#22c55e;color:#16a34a;background:rgba(34,197,94,0.06);border-style:solid}
 .ai-disclaimer{font-size:11px;color:#92400e;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:8px 12px;margin-top:10px;line-height:1.5}
+.subtab-row{display:flex;gap:4px;margin-bottom:14px;background:#f1f3f7;border-radius:10px;padding:4px}
+.subtab{flex:1;text-align:center;padding:8px 6px;font-size:11px;font-weight:600;color:var(--text2);cursor:pointer;border-radius:7px;transition:all 0.2s;line-height:1.3}
+.subtab.active{background:white;color:var(--navy);box-shadow:0 1px 4px rgba(15,31,61,0.12)}
+.subtab-panel{display:none}
+.subtab-panel.active{display:block}
 
 /* FOOTER */
 .footer{text-align:center;padding:28px;border-top:1px solid var(--border);background:white}
@@ -135,28 +140,54 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 
     <div class="tools-grid">
 
-      <!-- Tool 1: Komatsu Parts -->
+      <!-- Tool 1: Komatsu Parts Identification Tool -->
       <div class="tool-card">
         <div class="tool-head">
           <div class="tool-icon-badge">🔧</div>
-          <div class="tool-name">Komatsu Part Cross-Referencer</div>
-          <div class="tool-byline">& SUPERSESSION TRACKER — BY RIZWAN</div>
+          <div class="tool-name">Komatsu Parts Identification Tool</div>
+          <div class="tool-byline">KPIT — BY RIZWAN</div>
         </div>
         <div class="tool-body">
-          <div class="tool-desc">Instantly analyze Komatsu part numbers to track supersessions, find aftermarket alternatives (CTP, KMP and others), and identify required installation seals or gaskets.</div>
-          <div class="quick-row">
-            <span class="qchip" onclick="quickFill('t1', '175-32-41261')">175-32-41261</span>
-            <span class="qchip" onclick="quickFill('t1', '6156-11-3300')">6156-11-3300</span>
-            <span class="qchip" onclick="quickFill('t1', 'ND499000-6160')">ND499000-6160</span>
+          <div class="tool-desc">Official Komatsu part lookup, supersession tracking, and OEM cross-referencing — Komatsu data only, no third-party brands.</div>
+
+          <div class="subtab-row">
+            <div class="subtab active" id="subtab-partno" onclick="switchSubtab('partno')">🔢 Part No<br>Lookup</div>
+            <div class="subtab" id="subtab-oem" onclick="switchSubtab('oem')">🔄 OEM Cross-<br>Reference</div>
+            <div class="subtab" id="subtab-lookup" onclick="switchSubtab('lookup')">🔍 Model +<br>Component</div>
           </div>
-          <input id="t1-input" class="tool-input" placeholder="Part number (175-32-41261) or query (track roller for D155-6)"/>
-          <div class="upload-mini" id="t1-upload-zone" onclick="document.getElementById('t1-file').click()">
-            <span id="t1-upload-text">📷 Or upload a part label / catalog photo (JPG, PNG)</span>
+
+          <!-- Sub-tab 1: Part Number Lookup (with image upload) -->
+          <div class="subtab-panel active" id="panel-partno">
+            <div class="quick-row">
+              <span class="qchip" onclick="quickFill('t1', '175-32-41261')">175-32-41261</span>
+              <span class="qchip" onclick="quickFill('t1', '6156-11-3300')">6156-11-3300</span>
+            </div>
+            <input id="t1-input" class="tool-input" placeholder="Komatsu part number or model+component query"/>
+            <div class="upload-mini" id="t1-upload-zone" onclick="document.getElementById('t1-file').click()">
+              <span id="t1-upload-text">📷 Or upload a part label / catalog photo (JPG, PNG)</span>
+            </div>
+            <input type="file" id="t1-file" accept="image/jpeg,image/png,image/jpg" style="display:none" onchange="handleKomatsuFile(event)"/>
+            <button id="t1-btn" class="tool-btn" onclick="runKomatsu()">🔍 Analyze Part Number</button>
+            <div id="t1-result" class="tool-result"></div>
           </div>
-          <input type="file" id="t1-file" accept="image/jpeg,image/png,image/jpg" style="display:none" onchange="handleKomatsuFile(event)"/>
-          <button id="t1-btn" class="tool-btn" onclick="runKomatsu()">🔍 Analyze Part Number</button>
-          <div class="ai-disclaimer">⚠️ AI-generated reference suggestions. Always verify part numbers against the official Komatsu EPC before ordering or quoting.</div>
-          <div id="t1-result" class="tool-result"></div>
+
+          <!-- Sub-tab 2: OEM Cross-Reference -->
+          <div class="subtab-panel" id="panel-oem">
+            <input id="oem-partno" class="tool-input" placeholder="Non-Komatsu OEM part number (e.g. ND499000-6160)"/>
+            <input id="oem-model" class="tool-input" placeholder="Komatsu machine model (e.g. PC200-8)"/>
+            <button id="oem-btn" class="tool-btn" onclick="runOemCrossRef()">🔄 Find Komatsu Equivalent</button>
+            <div id="oem-result" class="tool-result"></div>
+          </div>
+
+          <!-- Sub-tab 3: Model + Component Lookup -->
+          <div class="subtab-panel" id="panel-lookup">
+            <input id="lookup-model" class="tool-input" placeholder="Komatsu machine model (e.g. WA380-6, D65EX-16)"/>
+            <input id="lookup-component" class="tool-input" placeholder="Component name (e.g. engine oil filter)"/>
+            <button id="lookup-btn" class="tool-btn" onclick="runModelLookup()">🔍 Find Part Number</button>
+            <div id="lookup-result" class="tool-result"></div>
+          </div>
+
+          <div class="ai-disclaimer">⚠️ AI-generated reference suggestions based on Komatsu model knowledge. Always verify against the official Komatsu EPC before ordering or quoting.</div>
         </div>
       </div>
 
@@ -249,7 +280,7 @@ async function runKomatsu(){
   var btn = document.getElementById('t1-btn');
   btn.textContent = '⏳ Analyzing...'; btn.disabled = true;
   try{
-    var bodyData = {tool: 'komatsu'};
+    var bodyData = {tool: 'komatsu_partno'};
     if(komatsuImageBase64){
       bodyData.imageBase64 = komatsuImageBase64;
       bodyData.imageMediaType = komatsuImageMediaType;
@@ -275,6 +306,62 @@ async function runKomatsu(){
     document.getElementById('t1-result').textContent = reply;
   } catch(e){ alert('Network error. Please try again.'); }
   btn.textContent = '🔍 Analyze Part Number'; btn.disabled = false;
+}
+
+// Sub-tab switching for Komatsu tool
+function switchSubtab(name){
+  document.querySelectorAll('.subtab').forEach(function(el){ el.classList.remove('active'); });
+  document.querySelectorAll('.subtab-panel').forEach(function(el){ el.classList.remove('active'); });
+  document.getElementById('subtab-' + name).classList.add('active');
+  document.getElementById('panel-' + name).classList.add('active');
+}
+
+async function runOemCrossRef(){
+  var oemPart = document.getElementById('oem-partno').value.trim();
+  var model = document.getElementById('oem-model').value.trim();
+  if(!oemPart || !model){alert('Please enter both the OEM part number and Komatsu machine model');return;}
+  var btn = document.getElementById('oem-btn');
+  btn.textContent = '⏳ Cross-referencing...'; btn.disabled = true;
+  try{
+    var res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        tool: 'komatsu_oem',
+        messages: [{role: 'user', content: 'OEM Part Number: ' + oemPart + ' | Komatsu Machine Model: ' + model}]
+      })
+    });
+    var data = await res.json();
+    var reply = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text : 'Error. Please try again.';
+    reply = reply.replace(/#{1,6} */g, '').trim();
+    document.getElementById('oem-result').style.display = 'block';
+    document.getElementById('oem-result').textContent = reply;
+  } catch(e){ alert('Network error. Please try again.'); }
+  btn.textContent = '🔄 Find Komatsu Equivalent'; btn.disabled = false;
+}
+
+async function runModelLookup(){
+  var model = document.getElementById('lookup-model').value.trim();
+  var component = document.getElementById('lookup-component').value.trim();
+  if(!model || !component){alert('Please enter both the machine model and component name');return;}
+  var btn = document.getElementById('lookup-btn');
+  btn.textContent = '⏳ Searching...'; btn.disabled = true;
+  try{
+    var res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        tool: 'komatsu_lookup',
+        messages: [{role: 'user', content: 'Machine Model: ' + model + ' | Component: ' + component}]
+      })
+    });
+    var data = await res.json();
+    var reply = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text : 'Error. Please try again.';
+    reply = reply.replace(/#{1,6} */g, '').trim();
+    document.getElementById('lookup-result').style.display = 'block';
+    document.getElementById('lookup-result').textContent = reply;
+  } catch(e){ alert('Network error. Please try again.'); }
+  btn.textContent = '🔍 Find Part Number'; btn.disabled = false;
 }
 
 // Text file upload for PDF tool
