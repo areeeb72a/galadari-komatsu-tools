@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Galadari Trucks — Komatsu AI Tools</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Noto+Nastaliq+Urdu:wght@400;600;700&family=Noto+Sans+Arabic:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -54,11 +54,12 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .sec-title{font-size:24px;font-weight:800;color:var(--text);margin-bottom:28px}
 
 /* TOOLS GRID */
-.tools-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.tools-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px}
 .tool-card{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(15,31,61,0.06);transition:all 0.25s}
 .tool-card:hover{box-shadow:0 8px 30px rgba(15,31,61,0.12);transform:translateY(-2px)}
 .tool-head{background:linear-gradient(135deg,var(--navy),var(--steel));padding:24px;position:relative}
 .tool-head.pdf-head{background:linear-gradient(135deg,#1e3a5f,#2c5282)}
+.tool-head.translate-head{background:linear-gradient(135deg,#1a5c4a,#2d7a63)}
 .tool-icon-badge{width:52px;height:52px;background:rgba(255,122,0,0.15);border:1px solid rgba(255,122,0,0.3);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:14px}
 .pdf-head .tool-icon-badge{background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.3)}
 .tool-name{font-size:18px;font-weight:800;color:white;margin-bottom:4px}
@@ -73,6 +74,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .tool-btn{width:100%;padding:12px;border-radius:10px;border:none;font-size:14px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;color:white;background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 4px 14px rgba(255,122,0,0.3);transition:all 0.2s}
 .tool-btn:hover{box-shadow:0 6px 20px rgba(255,122,0,0.4);transform:translateY(-1px)}
 .tool-btn.pdf-btn{background:linear-gradient(135deg,#2c5282,#3d6ba5);box-shadow:0 4px 14px rgba(44,82,130,0.3)}
+.tool-btn.translate-btn{background:linear-gradient(135deg,#1a5c4a,#2d7a63);box-shadow:0 4px 14px rgba(45,122,99,0.3)}
 .tool-btn.pdf-btn:hover{box-shadow:0 6px 20px rgba(44,82,130,0.4)}
 .tool-btn:disabled{opacity:0.5;cursor:not-allowed;transform:none}
 .tool-result{display:none;margin-top:14px;background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:16px;font-size:13px;color:var(--text);line-height:1.7;max-height:500px;overflow-y:auto;font-family:'JetBrains Mono',monospace;white-space:pre-wrap}
@@ -84,6 +86,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .upload-mini{border:1.5px dashed var(--border);border-radius:8px;padding:10px 12px;text-align:center;cursor:pointer;font-size:11px;color:var(--text2);margin-bottom:10px;transition:all 0.2s;background:#f8fafc}
 .upload-mini:hover{border-color:var(--accent);color:var(--accent);background:rgba(255,122,0,0.04)}
 .upload-mini.has-file{border-color:#22c55e;color:#16a34a;background:rgba(34,197,94,0.06);border-style:solid}
+.ai-disclaimer{font-size:11px;color:#92400e;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:8px 12px;margin-top:10px;line-height:1.5}
 
 /* FOOTER */
 .footer{text-align:center;padding:28px;border-top:1px solid var(--border);background:white}
@@ -152,6 +155,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
           </div>
           <input type="file" id="t1-file" accept="image/jpeg,image/png,image/jpg" style="display:none" onchange="handleKomatsuFile(event)"/>
           <button id="t1-btn" class="tool-btn" onclick="runKomatsu()">🔍 Analyze Part Number</button>
+          <div class="ai-disclaimer">⚠️ AI-generated reference suggestions. Always verify part numbers against the official Komatsu EPC before ordering or quoting.</div>
           <div id="t1-result" class="tool-result"></div>
         </div>
       </div>
@@ -173,6 +177,30 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
           <button id="t2-btn" class="tool-btn pdf-btn" onclick="runPdf()">📄 Format Document</button>
           <div id="t2-result" class="tool-result"></div>
           <button id="t2-download" class="tool-btn pdf-btn" style="display:none;margin-top:10px;background:linear-gradient(135deg,#16a34a,#22c55e)" onclick="downloadPdf()">⬇️ Download as PDF</button>
+        </div>
+      </div>
+
+      <!-- Tool 3: Multi-Language Quote Translator -->
+      <div class="tool-card">
+        <div class="tool-head translate-head">
+          <div class="tool-icon-badge">🌐</div>
+          <div class="tool-name">Quote Translator</div>
+          <div class="tool-byline">MULTI-LANGUAGE ENGINE — BY RIZWAN</div>
+        </div>
+        <div class="tool-body">
+          <div class="tool-desc">Translate your English quotations into Arabic, Urdu, or Hindi for customers — part numbers, prices, and dates stay exact while text is professionally translated.</div>
+          <select id="t3-lang" class="tool-input" style="margin-bottom:10px">
+            <option value="Arabic">🇦🇪 Arabic</option>
+            <option value="Urdu">🇵🇰 Urdu</option>
+            <option value="Hindi">🇮🇳 Hindi</option>
+          </select>
+          <div class="upload-mini" id="t3-upload-zone" onclick="document.getElementById('t3-file').click()">
+            <span id="t3-upload-text">📁 Or upload a .txt file</span>
+          </div>
+          <input type="file" id="t3-file" accept=".txt,text/plain" style="display:none" onchange="handleT3File(event)"/>
+          <textarea id="t3-input" class="tool-textarea" placeholder="Paste your English quotation text here, or upload a .txt file above..."></textarea>
+          <button id="t3-btn" class="tool-btn translate-btn" onclick="runTranslate()">🌐 Translate Quote</button>
+          <div id="t3-result" class="tool-result" style="direction:rtl;font-family:'Noto Nastaliq Urdu',sans-serif"></div>
         </div>
       </div>
 
@@ -459,6 +487,43 @@ function downloadPdf(){
   }
 
   doc.save((d.docNo || 'document').replace(/[\\/\\\\]/g, '-') + '.pdf');
+}
+
+// Multi-Language Quote Translator
+function handleT3File(event){
+  var file = event.target.files[0];
+  if(!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e){
+    document.getElementById('t3-input').value = e.target.result;
+    document.getElementById('t3-upload-zone').classList.add('has-file');
+    document.getElementById('t3-upload-text').textContent = '✅ ' + file.name + ' loaded';
+  };
+  reader.readAsText(file);
+}
+
+async function runTranslate(){
+  var text = document.getElementById('t3-input').value.trim();
+  var lang = document.getElementById('t3-lang').value;
+  if(!text){alert('Please paste your English quotation text or upload a file');return;}
+  var btn = document.getElementById('t3-btn');
+  btn.textContent = '⏳ Translating...'; btn.disabled = true;
+  document.getElementById('t3-result').style.display = 'none';
+  try{
+    var res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        tool: 'translate',
+        messages: [{role: 'user', content: 'Translate this commercial document into ' + lang + ':\\n\\n' + text}]
+      })
+    });
+    var data = await res.json();
+    var reply = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text : 'Error. Please try again.';
+    document.getElementById('t3-result').style.display = 'block';
+    document.getElementById('t3-result').textContent = reply;
+  } catch(e){ alert('Network error. Please try again.'); }
+  btn.textContent = '🌐 Translate Quote'; btn.disabled = false;
 }
 </script>
 
