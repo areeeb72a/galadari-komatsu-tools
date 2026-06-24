@@ -503,7 +503,7 @@ function handleT3File(event){
   reader.readAsText(file);
 }
 
-var lastTranslatedText = '';
+var lastTranslatedDoc = null;
 var lastTranslatedLang = '';
 
 async function runTranslate(){
@@ -524,38 +524,110 @@ async function runTranslate(){
       })
     });
     var data = await res.json();
-    var reply = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text : 'Error. Please try again.';
-    document.getElementById('t3-result').style.display = 'block';
-    document.getElementById('t3-result').textContent = reply;
-    lastTranslatedText = reply;
+    var reply = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text : '';
+    var cleanJson = reply.replace(/^```json\\s*/i, '').replace(/```\\s*$/i, '').trim();
+    var docData;
+    try{
+      docData = JSON.parse(cleanJson);
+    } catch(parseErr){
+      document.getElementById('t3-result').style.display = 'block';
+      document.getElementById('t3-result').textContent = 'Error parsing response. Raw output:\\n\\n' + reply;
+      btn.textContent = '🌐 Translate Quote'; btn.disabled = false;
+      return;
+    }
+    lastTranslatedDoc = docData;
     lastTranslatedLang = lang;
+    document.getElementById('t3-result').style.display = 'block';
+    document.getElementById('t3-result').style.direction = 'rtl';
+    document.getElementById('t3-result').style.fontFamily = lang === 'Urdu' ? "'Noto Nastaliq Urdu', serif" : "'Noto Sans Arabic', sans-serif";
+    document.getElementById('t3-result').textContent = '✅ ' + (docData.docTitle || 'Document') + ' — ' + docData.docNo + '\\n' + docData.customerName + '\\n' + docData.items.length + ' items — ' + docData.currency + ' ' + docData.netAmount;
     document.getElementById('t3-download').style.display = 'block';
   } catch(e){ alert('Network error. Please try again.'); }
   btn.textContent = '🌐 Translate Quote'; btn.disabled = false;
 }
 
+function fmtMoneyT3(val){
+  if(val === undefined || val === null || val === '') return '';
+  var n = parseFloat(val);
+  if(isNaN(n)) return val;
+  return n.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+}
+
 async function downloadTranslatedPdf(){
-  if(!lastTranslatedText){alert('Please translate a document first.');return;}
+  if(!lastTranslatedDoc){alert('Please translate a document first.');return;}
+  var d = lastTranslatedDoc;
+  var fontFamily = lastTranslatedLang === 'Urdu' ? "'Noto Nastaliq Urdu', serif" : "'Noto Sans Arabic', sans-serif";
   var btn = document.getElementById('t3-download');
   btn.textContent = '⏳ Generating PDF...'; btn.disabled = true;
 
-  var fontFamily = lastTranslatedLang === 'Urdu' ? "'Noto Nastaliq Urdu', serif" : "'Noto Sans Arabic', sans-serif";
+  var itemRows = (d.items || []).map(function(it){
+    return '<tr>' +
+      '<td style="border:1px solid #999;padding:8px;text-align:center">' + (it.no||'') + '</td>' +
+      '<td style="border:1px solid #999;padding:8px;white-space:pre-line">' + (it.partNo||'') + '</td>' +
+      '<td style="border:1px solid #999;padding:8px">' + (it.description||'') + '</td>' +
+      '<td style="border:1px solid #999;padding:8px;text-align:center">' + (it.qty||'') + '</td>' +
+      '<td style="border:1px solid #999;padding:8px;text-align:left;direction:ltr">' + fmtMoneyT3(it.unitPrice) + '</td>' +
+      '<td style="border:1px solid #999;padding:8px;text-align:left;direction:ltr">' + fmtMoneyT3(it.extendedPrice) + '</td>' +
+      '<td style="border:1px solid #999;padding:8px;text-align:center">' + (it.stkAvlb||'') + '</td>' +
+      '<td style="border:1px solid #999;padding:8px;text-align:center">' + (it.eta||'') + '</td>' +
+    '</tr>';
+  }).join('');
+
+  var termsHtml = (d.terms||[]).map(function(t){ return '<div style="margin-bottom:4px">• ' + t + '</div>'; }).join('');
+
+  var html = '' +
+  '<div style="width:760px;padding:30px;background:#fff;direction:rtl;font-family:' + fontFamily + ';color:#1a1a1a;font-size:13px;line-height:1.7">' +
+    '<div style="text-align:center;font-size:18px;font-weight:700;margin-bottom:6px">' + (d.companyName||'') + '</div>' +
+    '<div style="text-align:center;font-size:11px;color:#444;margin-bottom:4px">' + (d.companyAddress||'') + '</div>' +
+    '<div style="text-align:center;font-size:11px;color:#444;margin-bottom:14px">' + (d.companyContact||'') + '</div>' +
+    '<div style="border-top:2px solid #1a1a1a;margin-bottom:14px"></div>' +
+    '<div style="text-align:center;font-size:16px;font-weight:700;margin-bottom:16px;letter-spacing:2px">' + (d.docTitle||'') + '</div>' +
+    '<table style="width:100%;margin-bottom:16px;font-size:12px"><tr>' +
+      '<td style="width:25%;font-weight:700;vertical-align:top;padding:3px 0">' + (d.customerLabel||'') + ':</td>' +
+      '<td style="width:25%;vertical-align:top;padding:3px 0">' + (d.customerName||'') + '<br>' + (d.customerAddress||'') + '</td>' +
+      '<td style="width:25%;font-weight:700;vertical-align:top;padding:3px 0">' + (d.docNoLabel||'') + ':</td>' +
+      '<td style="width:25%;vertical-align:top;padding:3px 0">' + (d.docNo||'') + '</td>' +
+    '</tr><tr>' +
+      '<td style="font-weight:700;vertical-align:top;padding:3px 0">' + (d.yourRefLabel||'') + ':</td>' +
+      '<td style="vertical-align:top;padding:3px 0">' + (d.yourRef||'') + '</td>' +
+      '<td style="font-weight:700;vertical-align:top;padding:3px 0">' + (d.dateLabel||'') + ':</td>' +
+      '<td style="vertical-align:top;padding:3px 0">' + (d.date||'') + '</td>' +
+    '</tr><tr>' +
+      '<td style="font-weight:700;vertical-align:top;padding:3px 0">' + (d.trnLabel||'') + ':</td>' +
+      '<td style="vertical-align:top;padding:3px 0">' + (d.trn||'') + '</td>' +
+      '<td style="font-weight:700;vertical-align:top;padding:3px 0">' + (d.salesmanLabel||'') + ':</td>' +
+      '<td style="vertical-align:top;padding:3px 0">' + (d.salesman||'') + '</td>' +
+    '</tr></table>' +
+    '<table style="width:100%;border-collapse:collapse;margin-bottom:14px;font-size:11.5px">' +
+      '<thead><tr style="background:#1e3a5f;color:#fff">' +
+        '<th style="border:1px solid #999;padding:8px">' + (d.tableHeaders.no||'') + '</th>' +
+        '<th style="border:1px solid #999;padding:8px">' + (d.tableHeaders.partNo||'') + '</th>' +
+        '<th style="border:1px solid #999;padding:8px">' + (d.tableHeaders.description||'') + '</th>' +
+        '<th style="border:1px solid #999;padding:8px">' + (d.tableHeaders.qty||'') + '</th>' +
+        '<th style="border:1px solid #999;padding:8px">' + (d.tableHeaders.unitPrice||'') + ' (' + d.currency + ')</th>' +
+        '<th style="border:1px solid #999;padding:8px">' + (d.tableHeaders.extendedPrice||'') + ' (' + d.currency + ')</th>' +
+        '<th style="border:1px solid #999;padding:8px">' + (d.tableHeaders.stkAvlb||'') + '</th>' +
+        '<th style="border:1px solid #999;padding:8px">' + (d.tableHeaders.eta||'') + '</th>' +
+      '</tr></thead>' +
+      '<tbody>' + itemRows + '</tbody>' +
+    '</table>' +
+    '<table style="margin-right:0;margin-left:auto;width:260px;font-size:12px;margin-bottom:14px">' +
+      (d.totalAmount ? '<tr><td style="padding:3px 0">' + d.totalAmountLabel + ':</td><td style="text-align:left;direction:ltr;padding:3px 0">' + fmtMoneyT3(d.totalAmount) + '</td></tr>' : '') +
+      (d.discount ? '<tr><td style="padding:3px 0">' + d.discountLabel + ':</td><td style="text-align:left;direction:ltr;padding:3px 0">' + fmtMoneyT3(d.discount) + '</td></tr>' : '') +
+      (d.grossAmount ? '<tr><td style="padding:3px 0">' + d.grossAmountLabel + ':</td><td style="text-align:left;direction:ltr;padding:3px 0">' + fmtMoneyT3(d.grossAmount) + '</td></tr>' : '') +
+      (d.vatAmount ? '<tr><td style="padding:3px 0">' + d.vatLabel + ' (' + d.vatPercent + '%):</td><td style="text-align:left;direction:ltr;padding:3px 0">' + fmtMoneyT3(d.vatAmount) + '</td></tr>' : '') +
+      '<tr><td colspan="2" style="border-top:2px solid #1a1a1a;padding-top:6px;font-weight:700;font-size:14px">' + d.netAmountLabel + ': <span style="direction:ltr;display:inline-block">' + d.currency + ' ' + fmtMoneyT3(d.netAmount) + '</span></td></tr>' +
+    '</table>' +
+    (d.terms && d.terms.length ? '<div style="font-weight:700;margin-bottom:6px">' + (d.termsLabel||'') + '</div><div style="font-size:11.5px;margin-bottom:10px">' + termsHtml + '</div>' : '') +
+    (d.delivery ? '<div style="font-size:11.5px;margin-bottom:10px"><b>' + (d.deliveryLabel||'') + ':</b> ' + d.delivery + '</div>' : '') +
+    (d.footerNote ? '<div style="font-size:10.5px;color:#555;border-top:1px solid #ccc;padding-top:8px;margin-top:10px">' + d.footerNote + '</div>' : '') +
+  '</div>';
 
   var renderDiv = document.createElement('div');
   renderDiv.style.position = 'fixed';
   renderDiv.style.top = '-9999px';
   renderDiv.style.left = '0';
-  renderDiv.style.width = '700px';
-  renderDiv.style.padding = '40px';
-  renderDiv.style.background = '#ffffff';
-  renderDiv.style.direction = 'rtl';
-  renderDiv.style.textAlign = 'right';
-  renderDiv.style.fontFamily = fontFamily;
-  renderDiv.style.fontSize = '17px';
-  renderDiv.style.lineHeight = '2';
-  renderDiv.style.color = '#1a1a1a';
-  renderDiv.style.whiteSpace = 'pre-wrap';
-  renderDiv.textContent = lastTranslatedText;
+  renderDiv.innerHTML = html;
   document.body.appendChild(renderDiv);
 
   try{
@@ -582,7 +654,7 @@ async function downloadTranslatedPdf(){
       heightLeft -= (pageHeight - 40);
     }
 
-    doc.save('translated-quote-' + lastTranslatedLang.toLowerCase() + '.pdf');
+    doc.save((d.docNo || 'translated-quote').replace(/[\\/\\\\]/g, '-') + '-' + lastTranslatedLang.toLowerCase() + '.pdf');
   } catch(e){
     if(document.body.contains(renderDiv)) document.body.removeChild(renderDiv);
     alert('Error generating PDF. Please try again.');
