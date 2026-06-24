@@ -81,6 +81,9 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .quick-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
 .qchip{padding:5px 12px;border-radius:14px;font-size:11px;font-weight:600;background:#eef2f8;color:var(--steel);border:1px solid var(--border);cursor:pointer;transition:all 0.15s}
 .qchip:hover{background:rgba(255,122,0,0.1);border-color:var(--accent);color:var(--accent)}
+.upload-mini{border:1.5px dashed var(--border);border-radius:8px;padding:10px 12px;text-align:center;cursor:pointer;font-size:11px;color:var(--text2);margin-bottom:10px;transition:all 0.2s;background:#f8fafc}
+.upload-mini:hover{border-color:var(--accent);color:var(--accent);background:rgba(255,122,0,0.04)}
+.upload-mini.has-file{border-color:#22c55e;color:#16a34a;background:rgba(34,197,94,0.06);border-style:solid}
 
 /* FOOTER */
 .footer{text-align:center;padding:28px;border-top:1px solid var(--border);background:white}
@@ -113,7 +116,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
   <div class="hero-inner">
     <div class="hero-eyebrow">INTERNAL AI TOOLS DIVISION</div>
     <div class="hero-title">Komatsu <span>Parts Intelligence</span> Suite</div>
-    <div class="hero-sub">AI-powered tools built for our parts and sales teams — instant part cross-referencing, supersession tracking, and document automation for faster, accurate customer service.</div>
+    <div class="hero-sub">AI-powered tools built for our Parts team — instant part cross-referencing, supersession tracking, and document automation for faster, accurate customer service.</div>
     <div class="hero-stats">
       <div class="hstat"><div class="hstat-num">2</div><div class="hstat-lbl">AI TOOLS</div></div>
       <div class="hstat"><div class="hstat-num">24/7</div><div class="hstat-lbl">AVAILABILITY</div></div>
@@ -144,6 +147,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
             <span class="qchip" onclick="quickFill('t1', 'ND499000-6160')">ND499000-6160</span>
           </div>
           <input id="t1-input" class="tool-input" placeholder="Enter Komatsu Part Number (e.g. 175-32-41261)"/>
+          <div class="upload-mini" id="t1-upload-zone" onclick="document.getElementById('t1-file').click()">
+            <span id="t1-upload-text">📷 Or upload a part label / catalog photo (JPG, PNG)</span>
+          </div>
+          <input type="file" id="t1-file" accept="image/jpeg,image/png,image/jpg" style="display:none" onchange="handleKomatsuFile(event)"/>
           <button id="t1-btn" class="tool-btn" onclick="runKomatsu()">🔍 Analyze Part Number</button>
           <div id="t1-result" class="tool-result"></div>
         </div>
@@ -158,9 +165,14 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
         </div>
         <div class="tool-body">
           <div class="tool-desc">Convert your raw ERP text file dumps (Quotations, Invoices, Purchase Orders) into clean, professional, PDF-ready formatted documents.</div>
-          <textarea id="t2-input" class="tool-textarea" placeholder="Paste your raw ERP text dump here..."></textarea>
+          <div class="upload-mini" id="t2-upload-zone" onclick="document.getElementById('t2-file').click()">
+            <span id="t2-upload-text">📁 Or upload a .txt file</span>
+          </div>
+          <input type="file" id="t2-file" accept=".txt,text/plain" style="display:none" onchange="handleTxtFile(event)"/>
+          <textarea id="t2-input" class="tool-textarea" placeholder="Paste your raw ERP text dump here, or upload a .txt file above..."></textarea>
           <button id="t2-btn" class="tool-btn pdf-btn" onclick="runPdf()">📄 Format Document</button>
           <div id="t2-result" class="tool-result"></div>
+          <button id="t2-download" class="tool-btn pdf-btn" style="display:none;margin-top:10px;background:linear-gradient(135deg,#16a34a,#22c55e)" onclick="downloadPdf()">⬇️ Download as PDF</button>
         </div>
       </div>
 
@@ -169,27 +181,63 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 </div>
 
 <div class="footer">
-  <div class="footer-text">Internal AI Tools — <span class="footer-brand">Galadari Trucks & Heavy Equipment</span> | Abu Dhabi, UAE | Built by Syed Rizwan Ahmed</div>
+  <div class="footer-text">Internal AI Tools — <span class="footer-brand">Galadari Trucks & Heavy Equipment</span> | Abu Dhabi, UAE</div>
+  <div class="footer-text" style="margin-top:6px">Developed by <span class="footer-brand">Syed Rizwan Ahmed</span> — 📞 +971 50 656 5028</div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
 <script>
 function quickFill(id, val){
   document.getElementById(id+'-input').value = val;
 }
 
+// Komatsu image upload
+var komatsuImageBase64 = null;
+var komatsuImageMediaType = null;
+
+function handleKomatsuFile(event){
+  var file = event.target.files[0];
+  if(!file) return;
+  if(file.size > 8*1024*1024){
+    alert('File size should be under 8MB.');
+    return;
+  }
+  var reader = new FileReader();
+  reader.onload = function(e){
+    var result = e.target.result;
+    komatsuImageBase64 = result.split(',')[1];
+    komatsuImageMediaType = file.type;
+    document.getElementById('t1-upload-zone').classList.add('has-file');
+    document.getElementById('t1-upload-text').textContent = '✅ ' + file.name + ' attached';
+  };
+  reader.readAsDataURL(file);
+}
+
 async function runKomatsu(){
   var partNo = document.getElementById('t1-input').value.trim();
-  if(!partNo){alert('Please enter a part number');return;}
+  if(!partNo && !komatsuImageBase64){alert('Please enter a part number or upload a photo');return;}
   var btn = document.getElementById('t1-btn');
   btn.textContent = '⏳ Analyzing...'; btn.disabled = true;
   try{
+    var bodyData = {tool: 'komatsu'};
+    if(komatsuImageBase64){
+      bodyData.imageBase64 = komatsuImageBase64;
+      bodyData.imageMediaType = komatsuImageMediaType;
+      bodyData.messages = [{
+        role: 'user',
+        content: [
+          {type: 'image', source: {type: 'base64', media_type: komatsuImageMediaType, data: komatsuImageBase64}},
+          {type: 'text', text: partNo ? ('Part Number visible: ' + partNo + '. Please also read any part numbers visible in this image and analyze.') : 'Please read the part number(s) visible in this image and analyze them.'}
+        ]
+      }];
+    } else {
+      bodyData.messages = [{role: 'user', content: 'Part Number: ' + partNo}];
+    }
     var res = await fetch('/api/chat', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        tool: 'komatsu',
-        messages: [{role: 'user', content: 'Part Number: ' + partNo}]
-      })
+      body: JSON.stringify(bodyData)
     });
     var data = await res.json();
     var reply = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text : 'Error. Please try again.';
@@ -200,11 +248,27 @@ async function runKomatsu(){
   btn.textContent = '🔍 Analyze Part Number'; btn.disabled = false;
 }
 
+// Text file upload for PDF tool
+function handleTxtFile(event){
+  var file = event.target.files[0];
+  if(!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e){
+    document.getElementById('t2-input').value = e.target.result;
+    document.getElementById('t2-upload-zone').classList.add('has-file');
+    document.getElementById('t2-upload-text').textContent = '✅ ' + file.name + ' loaded';
+  };
+  reader.readAsText(file);
+}
+
+var lastFormattedText = '';
+
 async function runPdf(){
   var text = document.getElementById('t2-input').value.trim();
-  if(!text){alert('Please paste your ERP text dump');return;}
+  if(!text){alert('Please paste your ERP text dump or upload a file');return;}
   var btn = document.getElementById('t2-btn');
   btn.textContent = '⏳ Formatting...'; btn.disabled = true;
+  document.getElementById('t2-download').style.display = 'none';
   try{
     var res = await fetch('/api/chat', {
       method: 'POST',
@@ -218,9 +282,53 @@ async function runPdf(){
     var reply = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text : 'Error. Please try again.';
     document.getElementById('t2-result').style.display = 'block';
     document.getElementById('t2-result').textContent = reply;
+    lastFormattedText = reply;
+    document.getElementById('t2-download').style.display = 'block';
   } catch(e){ alert('Network error. Please try again.'); }
   btn.textContent = '📄 Format Document'; btn.disabled = false;
 }
+
+function downloadPdf(){
+  if(!lastFormattedText){alert('Please format a document first.');return;}
+  var doc = new jspdf.jsPDF({unit: 'pt', format: 'a4'});
+  var pageWidth = doc.internal.pageSize.getWidth();
+  var margin = 40;
+  var maxWidth = pageWidth - margin*2;
+  var y = 50;
+
+  doc.setFont('Courier', 'normal');
+  doc.setFontSize(9);
+
+  var lines = lastFormattedText.split('\\n');
+  for(var i=0; i<lines.length; i++){
+    var line = lines[i];
+    // Bold headers (markdown # or **)
+    var isBold = /^#{1,3}\\s/.test(line) || /^\\*\\*.*\\*\\*$/.test(line);
+    var cleanLine = line.replace(/^#{1,6}\\s*/, '').replace(/\\*\\*/g, '').replace(/\\*/g, '');
+
+    if(isBold){
+      doc.setFont('Courier', 'bold');
+      doc.setFontSize(11);
+    } else {
+      doc.setFont('Courier', 'normal');
+      doc.setFontSize(9);
+    }
+
+    var wrapped = doc.splitTextToSize(cleanLine || ' ', maxWidth);
+    for(var j=0; j<wrapped.length; j++){
+      if(y > 780){
+        doc.addPage();
+        y = 50;
+      }
+      doc.text(wrapped[j], margin, y);
+      y += isBold ? 16 : 13;
+    }
+  }
+
+  doc.save('formatted-document.pdf');
+}
+</script>
+
 </script>
 </body>
 </html>
