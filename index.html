@@ -419,7 +419,7 @@ function downloadPdf(){
     styles: {fontSize: 8.5, cellPadding: 4, valign: 'middle'},
     columnStyles: {
       0: {halign: 'center', cellWidth: 24},
-      1: {cellWidth: 70},
+      1: {cellWidth: 80},
       2: {cellWidth: 'auto'},
       3: {halign: 'center', cellWidth: 30},
       4: {halign: 'right', cellWidth: 58},
@@ -563,7 +563,7 @@ async function downloadTranslatedPdf(){
   var itemRows = (d.items || []).map(function(it){
     return '<tr>' +
       '<td style="border:1px solid #999;padding:8px;text-align:center">' + (it.no||'') + '</td>' +
-      '<td style="border:1px solid #999;padding:8px;white-space:pre-line">' + (it.partNo||'') + '</td>' +
+      '<td style="border:1px solid #999;padding:8px;white-space:nowrap;direction:ltr;text-align:center">' + (it.partNo||'').replace(/\\n/g, '<br>') + '</td>' +
       '<td style="border:1px solid #999;padding:8px">' + (it.description||'') + '</td>' +
       '<td style="border:1px solid #999;padding:8px;text-align:center">' + (it.qty||'') + '</td>' +
       '<td style="border:1px solid #999;padding:8px;text-align:left;direction:ltr">' + fmtMoneyT3(it.unitPrice) + '</td>' +
@@ -575,30 +575,40 @@ async function downloadTranslatedPdf(){
 
   var termsHtml = (d.terms||[]).map(function(t){ return '<div style="margin-bottom:4px">• ' + t + '</div>'; }).join('');
 
+  var metaRow = function(label, value){
+    return '<div style="display:flex;margin-bottom:5px"><div style="font-weight:700;min-width:110px">' + label + ':</div><div style="flex:1">' + value + '</div></div>';
+  };
+
   var html = '' +
-  '<div style="width:760px;padding:30px;background:#fff;direction:rtl;font-family:' + fontFamily + ';color:#1a1a1a;font-size:13px;line-height:1.7">' +
+  '<div dir="rtl" style="width:760px;padding:30px;background:#fff;direction:rtl;text-align:right;font-family:' + fontFamily + ';color:#1a1a1a;font-size:13px;line-height:1.7">' +
     '<div style="text-align:center;font-size:18px;font-weight:700;margin-bottom:6px">' + (d.companyName||'') + '</div>' +
     '<div style="text-align:center;font-size:11px;color:#444;margin-bottom:4px">' + (d.companyAddress||'') + '</div>' +
     '<div style="text-align:center;font-size:11px;color:#444;margin-bottom:14px">' + (d.companyContact||'') + '</div>' +
     '<div style="border-top:2px solid #1a1a1a;margin-bottom:14px"></div>' +
-    '<div style="text-align:center;font-size:16px;font-weight:700;margin-bottom:16px;letter-spacing:2px">' + (d.docTitle||'') + '</div>' +
-    '<table style="width:100%;margin-bottom:16px;font-size:12px"><tr>' +
-      '<td style="width:25%;font-weight:700;vertical-align:top;padding:3px 0">' + (d.customerLabel||'') + ':</td>' +
-      '<td style="width:25%;vertical-align:top;padding:3px 0">' + (d.customerName||'') + '<br>' + (d.customerAddress||'') + '</td>' +
-      '<td style="width:25%;font-weight:700;vertical-align:top;padding:3px 0">' + (d.docNoLabel||'') + ':</td>' +
-      '<td style="width:25%;vertical-align:top;padding:3px 0">' + (d.docNo||'') + '</td>' +
-    '</tr><tr>' +
-      '<td style="font-weight:700;vertical-align:top;padding:3px 0">' + (d.yourRefLabel||'') + ':</td>' +
-      '<td style="vertical-align:top;padding:3px 0">' + (d.yourRef||'') + '</td>' +
-      '<td style="font-weight:700;vertical-align:top;padding:3px 0">' + (d.dateLabel||'') + ':</td>' +
-      '<td style="vertical-align:top;padding:3px 0">' + (d.date||'') + '</td>' +
-    '</tr><tr>' +
-      '<td style="font-weight:700;vertical-align:top;padding:3px 0">' + (d.trnLabel||'') + ':</td>' +
-      '<td style="vertical-align:top;padding:3px 0">' + (d.trn||'') + '</td>' +
-      '<td style="font-weight:700;vertical-align:top;padding:3px 0">' + (d.salesmanLabel||'') + ':</td>' +
-      '<td style="vertical-align:top;padding:3px 0">' + (d.salesman||'') + '</td>' +
-    '</tr></table>' +
-    '<table style="width:100%;border-collapse:collapse;margin-bottom:14px;font-size:11.5px">' +
+    '<div style="text-align:center;font-size:16px;font-weight:700;margin-bottom:16px">' + (d.docTitle||'') + '</div>' +
+    '<div style="display:flex;gap:24px;margin-bottom:16px;font-size:12px">' +
+      '<div style="flex:1">' +
+        metaRow(d.customerLabel, (d.customerName||'') + '<br>' + (d.customerAddress||'')) +
+        metaRow(d.yourRefLabel, d.yourRef||'') +
+        metaRow(d.trnLabel, d.trn||'') +
+      '</div>' +
+      '<div style="flex:1">' +
+        metaRow(d.docNoLabel, d.docNo||'') +
+        metaRow(d.dateLabel, d.date||'') +
+        metaRow(d.salesmanLabel, d.salesman||'') +
+      '</div>' +
+    '</div>' +
+    '<table dir="rtl" style="width:100%;border-collapse:collapse;margin-bottom:14px;font-size:11.5px">' +
+      '<colgroup>' +
+        '<col style="width:5%">' +
+        '<col style="width:16%">' +
+        '<col style="width:auto">' +
+        '<col style="width:6%">' +
+        '<col style="width:12%">' +
+        '<col style="width:13%">' +
+        '<col style="width:8%">' +
+        '<col style="width:10%">' +
+      '</colgroup>' +
       '<thead><tr style="background:#1e3a5f;color:#fff">' +
         '<th style="border:1px solid #999;padding:8px">' + (d.tableHeaders.no||'') + '</th>' +
         '<th style="border:1px solid #999;padding:8px">' + (d.tableHeaders.partNo||'') + '</th>' +
@@ -611,13 +621,13 @@ async function downloadTranslatedPdf(){
       '</tr></thead>' +
       '<tbody>' + itemRows + '</tbody>' +
     '</table>' +
-    '<table style="margin-right:0;margin-left:auto;width:260px;font-size:12px;margin-bottom:14px">' +
-      (d.totalAmount ? '<tr><td style="padding:3px 0">' + d.totalAmountLabel + ':</td><td style="text-align:left;direction:ltr;padding:3px 0">' + fmtMoneyT3(d.totalAmount) + '</td></tr>' : '') +
-      (d.discount ? '<tr><td style="padding:3px 0">' + d.discountLabel + ':</td><td style="text-align:left;direction:ltr;padding:3px 0">' + fmtMoneyT3(d.discount) + '</td></tr>' : '') +
-      (d.grossAmount ? '<tr><td style="padding:3px 0">' + d.grossAmountLabel + ':</td><td style="text-align:left;direction:ltr;padding:3px 0">' + fmtMoneyT3(d.grossAmount) + '</td></tr>' : '') +
-      (d.vatAmount ? '<tr><td style="padding:3px 0">' + d.vatLabel + ' (' + d.vatPercent + '%):</td><td style="text-align:left;direction:ltr;padding:3px 0">' + fmtMoneyT3(d.vatAmount) + '</td></tr>' : '') +
-      '<tr><td colspan="2" style="border-top:2px solid #1a1a1a;padding-top:6px;font-weight:700;font-size:14px">' + d.netAmountLabel + ': <span style="direction:ltr;display:inline-block">' + d.currency + ' ' + fmtMoneyT3(d.netAmount) + '</span></td></tr>' +
-    '</table>' +
+    '<div style="margin-right:0;margin-left:auto;width:280px;font-size:12px;margin-bottom:14px">' +
+      (d.totalAmount ? '<div style="display:flex;justify-content:space-between;padding:3px 0"><span>' + d.totalAmountLabel + ':</span><span style="direction:ltr">' + fmtMoneyT3(d.totalAmount) + '</span></div>' : '') +
+      (d.discount ? '<div style="display:flex;justify-content:space-between;padding:3px 0"><span>' + d.discountLabel + ':</span><span style="direction:ltr">' + fmtMoneyT3(d.discount) + '</span></div>' : '') +
+      (d.grossAmount ? '<div style="display:flex;justify-content:space-between;padding:3px 0"><span>' + d.grossAmountLabel + ':</span><span style="direction:ltr">' + fmtMoneyT3(d.grossAmount) + '</span></div>' : '') +
+      (d.vatAmount ? '<div style="display:flex;justify-content:space-between;padding:3px 0"><span>' + d.vatLabel + ':</span><span style="direction:ltr">' + fmtMoneyT3(d.vatAmount) + '</span></div>' : '') +
+      '<div style="display:flex;justify-content:space-between;border-top:2px solid #1a1a1a;padding-top:6px;margin-top:4px;font-weight:700;font-size:14px"><span>' + d.netAmountLabel + ':</span><span style="direction:ltr">' + d.currency + ' ' + fmtMoneyT3(d.netAmount) + '</span></div>' +
+    '</div>' +
     (d.terms && d.terms.length ? '<div style="font-weight:700;margin-bottom:6px">' + (d.termsLabel||'') + '</div><div style="font-size:11.5px;margin-bottom:10px">' + termsHtml + '</div>' : '') +
     (d.delivery ? '<div style="font-size:11.5px;margin-bottom:10px"><b>' + (d.deliveryLabel||'') + ':</b> ' + d.delivery + '</div>' : '') +
     (d.footerNote ? '<div style="font-size:10.5px;color:#555;border-top:1px solid #ccc;padding-top:8px;margin-top:10px">' + d.footerNote + '</div>' : '') +
