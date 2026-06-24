@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Galadari Trucks — Komatsu AI Tools</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#0f1f3d;
+  --navy2:#152a4d;
+  --steel:#2c3e5c;
+  --steel-light:#3d5276;
+  --accent:#ff7a00;
+  --accent2:#ff9933;
+  --grey:#64748b;
+  --grey-light:#94a3b8;
+  --bg:#f4f6f9;
+  --card:#ffffff;
+  --border:#dde3ec;
+  --text:#1a2742;
+  --text2:#5a6b85;
+  --white:#ffffff;
+}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+/* TOPBAR */
+.topbar{background:var(--navy);color:white;padding:0}
+.topbar-inner{max-width:1100px;margin:0 auto;padding:14px 24px;display:flex;justify-content:space-between;align-items:center}
+.brand{display:flex;align-items:center;gap:12px}
+.brand-icon{width:40px;height:40px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800}
+.brand-text{font-size:16px;font-weight:700;letter-spacing:0.3px}
+.brand-sub{font-size:10px;color:#94a3b8;letter-spacing:1.5px;margin-top:1px}
+.topbar-badge{font-size:11px;background:rgba(255,122,0,0.15);border:1px solid rgba(255,122,0,0.3);color:var(--accent2);padding:5px 14px;border-radius:20px;font-weight:600;letter-spacing:0.5px}
+
+/* HERO */
+.hero{background:linear-gradient(135deg,var(--navy),var(--navy2));padding:48px 24px 56px;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;top:-50%;right:-10%;width:500px;height:500px;background:radial-gradient(circle,rgba(255,122,0,0.08),transparent 70%);border-radius:50%}
+.hero-inner{max-width:1100px;margin:0 auto;position:relative;z-index:2}
+.hero-eyebrow{font-size:11px;letter-spacing:3px;color:var(--accent2);font-weight:700;margin-bottom:14px}
+.hero-title{font-size:34px;font-weight:800;color:white;line-height:1.2;margin-bottom:10px}
+.hero-title span{color:var(--accent2)}
+.hero-sub{font-size:14px;color:#aab8cc;max-width:600px;line-height:1.7}
+.hero-stats{display:flex;gap:32px;margin-top:28px}
+.hstat{text-align:left}
+.hstat-num{font-size:26px;font-weight:800;color:white}
+.hstat-lbl{font-size:11px;color:#8fa0bd;letter-spacing:1px;margin-top:2px}
+
+/* CONTAINER */
+.container{max-width:1100px;margin:0 auto;padding:0 24px}
+.section{padding:48px 0}
+.sec-eyebrow{font-size:11px;letter-spacing:3px;color:var(--accent);font-weight:700;margin-bottom:8px}
+.sec-title{font-size:24px;font-weight:800;color:var(--text);margin-bottom:28px}
+
+/* TOOLS GRID */
+.tools-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.tool-card{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(15,31,61,0.06);transition:all 0.25s}
+.tool-card:hover{box-shadow:0 8px 30px rgba(15,31,61,0.12);transform:translateY(-2px)}
+.tool-head{background:linear-gradient(135deg,var(--navy),var(--steel));padding:24px;position:relative}
+.tool-head.pdf-head{background:linear-gradient(135deg,#1e3a5f,#2c5282)}
+.tool-icon-badge{width:52px;height:52px;background:rgba(255,122,0,0.15);border:1px solid rgba(255,122,0,0.3);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:14px}
+.pdf-head .tool-icon-badge{background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.3)}
+.tool-name{font-size:18px;font-weight:800;color:white;margin-bottom:4px}
+.tool-byline{font-size:10px;letter-spacing:2px;color:var(--accent2);font-weight:700}
+.pdf-head .tool-byline{color:#90cdf4}
+.tool-body{padding:22px 24px}
+.tool-desc{font-size:13px;color:var(--text2);line-height:1.7;margin-bottom:18px}
+.tool-input{width:100%;padding:11px 14px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:'Inter',sans-serif;color:var(--text);background:var(--bg);margin-bottom:10px;outline:none;transition:border-color 0.2s}
+.tool-input:focus{border-color:var(--accent);background:white}
+.tool-textarea{width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:'JetBrains Mono',monospace;color:var(--text);background:var(--bg);margin-bottom:14px;outline:none;resize:vertical;min-height:140px;transition:border-color 0.2s}
+.tool-textarea:focus{border-color:var(--accent);background:white}
+.tool-btn{width:100%;padding:12px;border-radius:10px;border:none;font-size:14px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;color:white;background:linear-gradient(135deg,var(--accent),var(--accent2));box-shadow:0 4px 14px rgba(255,122,0,0.3);transition:all 0.2s}
+.tool-btn:hover{box-shadow:0 6px 20px rgba(255,122,0,0.4);transform:translateY(-1px)}
+.tool-btn.pdf-btn{background:linear-gradient(135deg,#2c5282,#3d6ba5);box-shadow:0 4px 14px rgba(44,82,130,0.3)}
+.tool-btn.pdf-btn:hover{box-shadow:0 6px 20px rgba(44,82,130,0.4)}
+.tool-btn:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+.tool-result{display:none;margin-top:14px;background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:16px;font-size:13px;color:var(--text);line-height:1.7;max-height:500px;overflow-y:auto;font-family:'JetBrains Mono',monospace;white-space:pre-wrap}
+.tool-result::-webkit-scrollbar{width:5px}
+.tool-result::-webkit-scrollbar-thumb{background:var(--grey-light);border-radius:3px}
+.quick-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.qchip{padding:5px 12px;border-radius:14px;font-size:11px;font-weight:600;background:#eef2f8;color:var(--steel);border:1px solid var(--border);cursor:pointer;transition:all 0.15s}
+.qchip:hover{background:rgba(255,122,0,0.1);border-color:var(--accent);color:var(--accent)}
+
+/* FOOTER */
+.footer{text-align:center;padding:28px;border-top:1px solid var(--border);background:white}
+.footer-text{font-size:12px;color:var(--text2)}
+.footer-brand{font-weight:700;color:var(--navy)}
+
+@media(max-width:768px){
+  .tools-grid{grid-template-columns:1fr}
+  .hero-title{font-size:26px}
+  .hero-stats{flex-wrap:wrap;gap:20px}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <div class="brand-icon">🚜</div>
+      <div>
+        <div class="brand-text">Galadari Trucks & Heavy Equipment</div>
+        <div class="brand-sub">ABU DHABI, UAE</div>
+      </div>
+    </div>
+    <div class="topbar-badge">KOMATSU PARTNER</div>
+  </div>
+</div>
+
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-eyebrow">INTERNAL AI TOOLS DIVISION</div>
+    <div class="hero-title">Komatsu <span>Parts Intelligence</span> Suite</div>
+    <div class="hero-sub">AI-powered tools built for our parts and sales teams — instant part cross-referencing, supersession tracking, and document automation for faster, accurate customer service.</div>
+    <div class="hero-stats">
+      <div class="hstat"><div class="hstat-num">2</div><div class="hstat-lbl">AI TOOLS</div></div>
+      <div class="hstat"><div class="hstat-num">24/7</div><div class="hstat-lbl">AVAILABILITY</div></div>
+      <div class="hstat"><div class="hstat-num">KOMATSU</div><div class="hstat-lbl">CERTIFIED PARTNER</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="section">
+    <div class="sec-eyebrow">AI TOOLS</div>
+    <div class="sec-title">Available Tools</div>
+
+    <div class="tools-grid">
+
+      <!-- Tool 1: Komatsu Parts -->
+      <div class="tool-card">
+        <div class="tool-head">
+          <div class="tool-icon-badge">🔧</div>
+          <div class="tool-name">Komatsu Part Cross-Referencer</div>
+          <div class="tool-byline">& SUPERSESSION TRACKER — BY RIZWAN</div>
+        </div>
+        <div class="tool-body">
+          <div class="tool-desc">Instantly analyze Komatsu part numbers to track supersessions, find aftermarket alternatives (CTP, KMP and others), and identify required installation seals or gaskets.</div>
+          <div class="quick-row">
+            <span class="qchip" onclick="quickFill('t1', '175-32-41261')">175-32-41261</span>
+            <span class="qchip" onclick="quickFill('t1', '6156-11-3300')">6156-11-3300</span>
+            <span class="qchip" onclick="quickFill('t1', 'ND499000-6160')">ND499000-6160</span>
+          </div>
+          <input id="t1-input" class="tool-input" placeholder="Enter Komatsu Part Number (e.g. 175-32-41261)"/>
+          <button id="t1-btn" class="tool-btn" onclick="runKomatsu()">🔍 Analyze Part Number</button>
+          <div id="t1-result" class="tool-result"></div>
+        </div>
+      </div>
+
+      <!-- Tool 2: Text to PDF -->
+      <div class="tool-card">
+        <div class="tool-head pdf-head">
+          <div class="tool-icon-badge">📄</div>
+          <div class="tool-name">Text to PDF Formatter</div>
+          <div class="tool-byline">ERP DOCUMENT ENGINE — BY RIZWAN</div>
+        </div>
+        <div class="tool-body">
+          <div class="tool-desc">Convert your raw ERP text file dumps (Quotations, Invoices, Purchase Orders) into clean, professional, PDF-ready formatted documents.</div>
+          <textarea id="t2-input" class="tool-textarea" placeholder="Paste your raw ERP text dump here..."></textarea>
+          <button id="t2-btn" class="tool-btn pdf-btn" onclick="runPdf()">📄 Format Document</button>
+          <div id="t2-result" class="tool-result"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  <div class="footer-text">Internal AI Tools — <span class="footer-brand">Galadari Trucks & Heavy Equipment</span> | Abu Dhabi, UAE | Built by Syed Rizwan Ahmed</div>
+</div>
+
+<script>
+function quickFill(id, val){
+  document.getElementById(id+'-input').value = val;
+}
+
+async function runKomatsu(){
+  var partNo = document.getElementById('t1-input').value.trim();
+  if(!partNo){alert('Please enter a part number');return;}
+  var btn = document.getElementById('t1-btn');
+  btn.textContent = '⏳ Analyzing...'; btn.disabled = true;
+  try{
+    var res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        tool: 'komatsu',
+        messages: [{role: 'user', content: 'Part Number: ' + partNo}]
+      })
+    });
+    var data = await res.json();
+    var reply = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text : 'Error. Please try again.';
+    reply = reply.replace(/#{1,6} */g, '').trim();
+    document.getElementById('t1-result').style.display = 'block';
+    document.getElementById('t1-result').textContent = reply;
+  } catch(e){ alert('Network error. Please try again.'); }
+  btn.textContent = '🔍 Analyze Part Number'; btn.disabled = false;
+}
+
+async function runPdf(){
+  var text = document.getElementById('t2-input').value.trim();
+  if(!text){alert('Please paste your ERP text dump');return;}
+  var btn = document.getElementById('t2-btn');
+  btn.textContent = '⏳ Formatting...'; btn.disabled = true;
+  try{
+    var res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        tool: 'pdf',
+        messages: [{role: 'user', content: text}]
+      })
+    });
+    var data = await res.json();
+    var reply = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text : 'Error. Please try again.';
+    document.getElementById('t2-result').style.display = 'block';
+    document.getElementById('t2-result').textContent = reply;
+  } catch(e){ alert('Network error. Please try again.'); }
+  btn.textContent = '📄 Format Document'; btn.disabled = false;
+}
+</script>
+</body>
+</html>
