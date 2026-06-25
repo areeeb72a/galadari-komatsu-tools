@@ -54,7 +54,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .sec-title{font-size:24px;font-weight:800;color:var(--text);margin-bottom:28px}
 
 /* TOOLS GRID */
-.tools-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px}
+.tools-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
 .tool-card{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(15,31,61,0.06);transition:all 0.25s}
 .tool-card:hover{box-shadow:0 8px 30px rgba(15,31,61,0.12);transform:translateY(-2px)}
 .tool-head{background:linear-gradient(135deg,var(--navy),var(--steel));padding:24px;position:relative}
@@ -232,6 +232,30 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
           <button id="t3-btn" class="tool-btn translate-btn" onclick="runTranslate()">🌐 Translate Quote</button>
           <div id="t3-result" class="tool-result" style="direction:rtl;font-family:'Noto Nastaliq Urdu',sans-serif"></div>
           <button id="t3-download" class="tool-btn translate-btn" style="display:none;margin-top:10px;background:linear-gradient(135deg,#16a34a,#22c55e)" onclick="downloadTranslatedPdf()">⬇️ Download as PDF</button>
+        </div>
+      </div>
+
+      <!-- Tool 4: General Document Translator -->
+      <div class="tool-card">
+        <div class="tool-head" style="background:linear-gradient(135deg,#5b2c6f,#8e44ad)">
+          <div class="tool-icon-badge">📃</div>
+          <div class="tool-name">Document Translator</div>
+          <div class="tool-byline" style="color:#d2b4de">EN ⇄ AR PDF ENGINE — BY RIZWAN</div>
+        </div>
+        <div class="tool-body">
+          <div class="tool-desc">Translate any document (letters, memos, notices) between English and Arabic — auto-detects source language and produces a clean, downloadable PDF.</div>
+          <select id="t4-direction" class="tool-input" style="margin-bottom:10px">
+            <option value="Arabic">English ➜ Arabic</option>
+            <option value="English">Arabic ➜ English</option>
+          </select>
+          <div class="upload-mini" id="t4-upload-zone" onclick="document.getElementById('t4-file').click()">
+            <span id="t4-upload-text">📁 Or upload a .txt file</span>
+          </div>
+          <input type="file" id="t4-file" accept=".txt,text/plain" style="display:none" onchange="handleT4File(event)"/>
+          <textarea id="t4-input" class="tool-textarea" placeholder="Paste any document text here, or upload a .txt file above..."></textarea>
+          <button id="t4-btn" class="tool-btn" style="background:linear-gradient(135deg,#5b2c6f,#8e44ad);box-shadow:0 4px 14px rgba(142,68,173,0.3)" onclick="runGeneralTranslate()">📃 Translate Document</button>
+          <div id="t4-result" class="tool-result"></div>
+          <button id="t4-download" class="tool-btn" style="display:none;margin-top:10px;background:linear-gradient(135deg,#16a34a,#22c55e)" onclick="downloadGeneralTranslatedPdf()">⬇️ Download as PDF</button>
         </div>
       </div>
 
@@ -812,6 +836,122 @@ async function downloadTranslatedPdf(){
     }
 
     doc.save((d.docNo || 'translated-quote').replace(/[\\/\\\\]/g, '-') + '-' + lastTranslatedLang.toLowerCase() + '.pdf');
+  } catch(e){
+    if(document.body.contains(renderDiv)) document.body.removeChild(renderDiv);
+    alert('Error generating PDF. Please try again.');
+  }
+
+  btn.textContent = '⬇️ Download as PDF'; btn.disabled = false;
+}
+
+// General Document Translator (Tool 4)
+var lastGeneralDoc = null;
+var lastGeneralLang = '';
+
+function handleT4File(event){
+  var file = event.target.files[0];
+  if(!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e){
+    document.getElementById('t4-input').value = e.target.result;
+    document.getElementById('t4-upload-zone').classList.add('has-file');
+    document.getElementById('t4-upload-text').textContent = '✅ ' + file.name + ' loaded';
+  };
+  reader.readAsText(file);
+}
+
+async function runGeneralTranslate(){
+  var text = document.getElementById('t4-input').value.trim();
+  var targetLang = document.getElementById('t4-direction').value;
+  if(!text){alert('Please paste your document text or upload a file');return;}
+  var btn = document.getElementById('t4-btn');
+  btn.textContent = '⏳ Translating...'; btn.disabled = true;
+  document.getElementById('t4-result').style.display = 'none';
+  document.getElementById('t4-download').style.display = 'none';
+  try{
+    var res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        tool: 'general_translate',
+        messages: [{role: 'user', content: 'Translate this document into ' + targetLang + ':\\n\\n' + text}]
+      })
+    });
+    var data = await res.json();
+    var reply = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text : '';
+    var cleanJson = reply.replace(/^```json\\s*/i, '').replace(/```\\s*$/i, '').trim();
+    var docData;
+    try{
+      docData = JSON.parse(cleanJson);
+    } catch(parseErr){
+      document.getElementById('t4-result').style.display = 'block';
+      document.getElementById('t4-result').style.direction = 'ltr';
+      document.getElementById('t4-result').textContent = '⚠️ Could not parse translation. Raw output:\\n\\n' + reply.substring(0, 500);
+      btn.textContent = '📃 Translate Document'; btn.disabled = false;
+      return;
+    }
+    lastGeneralDoc = docData;
+    lastGeneralLang = targetLang;
+    var isRtl = targetLang === 'Arabic';
+    document.getElementById('t4-result').style.display = 'block';
+    document.getElementById('t4-result').style.direction = isRtl ? 'rtl' : 'ltr';
+    document.getElementById('t4-result').style.fontFamily = isRtl ? "'Noto Sans Arabic', sans-serif" : "'Inter', sans-serif";
+    document.getElementById('t4-result').textContent = '✅ Translated (' + docData.detectedSourceLanguage + ' ➜ ' + docData.targetLanguage + ')\\n\\n' + (docData.translatedTitle || '') + '\\n\\n' + docData.paragraphs.slice(0, 3).join('\\n\\n') + (docData.paragraphs.length > 3 ? '\\n\\n...' : '');
+    document.getElementById('t4-download').style.display = 'block';
+  } catch(e){ alert('Network error. Please try again.'); }
+  btn.textContent = '📃 Translate Document'; btn.disabled = false;
+}
+
+async function downloadGeneralTranslatedPdf(){
+  if(!lastGeneralDoc){alert('Please translate a document first.');return;}
+  var d = lastGeneralDoc;
+  var isRtl = lastGeneralLang === 'Arabic';
+  var fontFamily = isRtl ? "'Noto Sans Arabic', sans-serif" : "'Inter', sans-serif";
+  var btn = document.getElementById('t4-download');
+  btn.textContent = '⏳ Generating PDF...'; btn.disabled = true;
+
+  var paragraphsHtml = (d.paragraphs || []).map(function(p){
+    return '<p style="margin-bottom:14px">' + p.replace(/\\n/g, '<br>') + '</p>';
+  }).join('');
+
+  var html = '' +
+  '<div dir="' + (isRtl ? 'rtl' : 'ltr') + '" style="width:760px;padding:40px;background:#fff;direction:' + (isRtl ? 'rtl' : 'ltr') + ';text-align:' + (isRtl ? 'right' : 'left') + ';font-family:' + fontFamily + ';color:#1a1a1a;font-size:14px;line-height:1.9">' +
+    (d.translatedTitle ? '<div style="text-align:center;font-size:18px;font-weight:700;margin-bottom:24px">' + d.translatedTitle + '</div>' : '') +
+    paragraphsHtml +
+  '</div>';
+
+  var renderDiv = document.createElement('div');
+  renderDiv.style.position = 'fixed';
+  renderDiv.style.top = '-9999px';
+  renderDiv.style.left = '0';
+  renderDiv.innerHTML = html;
+  document.body.appendChild(renderDiv);
+
+  try{
+    var canvas = await html2canvas(renderDiv, {scale: 2, backgroundColor: '#ffffff'});
+    document.body.removeChild(renderDiv);
+
+    var imgData = canvas.toDataURL('image/png');
+    var doc = new jspdf.jsPDF({unit: 'pt', format: 'a4'});
+    var pageWidth = doc.internal.pageSize.getWidth();
+    var pageHeight = doc.internal.pageSize.getHeight();
+    var imgWidth = pageWidth - 40;
+    var imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+    var heightLeft = imgHeight;
+    var position = 20;
+
+    doc.addImage(imgData, 'PNG', 20, position, imgWidth, imgHeight);
+    heightLeft -= (pageHeight - 40);
+
+    while(heightLeft > 0){
+      position = heightLeft - imgHeight + 20;
+      doc.addPage();
+      doc.addImage(imgData, 'PNG', 20, position, imgWidth, imgHeight);
+      heightLeft -= (pageHeight - 40);
+    }
+
+    doc.save('translated-document-' + lastGeneralLang.toLowerCase() + '.pdf');
   } catch(e){
     if(document.body.contains(renderDiv)) document.body.removeChild(renderDiv);
     alert('Error generating PDF. Please try again.');
