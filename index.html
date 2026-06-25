@@ -235,27 +235,25 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
         </div>
       </div>
 
-      <!-- Tool 4: General Document Translator -->
+      <!-- Tool 4: Fitment & Kit Builder -->
       <div class="tool-card">
-        <div class="tool-head" style="background:linear-gradient(135deg,#5b2c6f,#8e44ad)">
-          <div class="tool-icon-badge">📃</div>
-          <div class="tool-name">Document Translator</div>
-          <div class="tool-byline" style="color:#d2b4de">EN ⇄ AR PDF ENGINE — BY RIZWAN</div>
+        <div class="tool-head" style="background:linear-gradient(135deg,#0f3d3a,#1a5c52)">
+          <div class="tool-icon-badge">🧰</div>
+          <div class="tool-name">Fitment & Kit Builder</div>
+          <div class="tool-byline" style="color:#7fd9c9">INSTANT EXPERT — BY RIZWAN</div>
         </div>
         <div class="tool-body">
-          <div class="tool-desc">Translate any document (letters, memos, notices) between English and Arabic — auto-detects source language and produces a clean, downloadable PDF.</div>
-          <select id="t4-direction" class="tool-input" style="margin-bottom:10px">
-            <option value="Arabic">English ➜ Arabic</option>
-            <option value="English">Arabic ➜ English</option>
-          </select>
-          <div class="upload-mini" id="t4-upload-zone" onclick="document.getElementById('t4-file').click()">
-            <span id="t4-upload-text">📁 Upload file (.txt, .docx, .pdf, .jpg, .png)</span>
+          <div class="tool-desc">Customer needs to service a machine but doesn't know part numbers? Search by model to instantly see fast-moving parts and pre-built service kits — turns any counter salesman into an instant technical expert.</div>
+          <div class="quick-row">
+            <span class="qchip" onclick="quickFillFitment('PC200-8')">PC200-8</span>
+            <span class="qchip" onclick="quickFillFitment('WA380-6')">WA380-6</span>
+            <span class="qchip" onclick="quickFillFitment('D155A-6')">D155A-6</span>
           </div>
-          <input type="file" id="t4-file" accept=".txt,text/plain,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.pdf,application/pdf,.jpg,.jpeg,.png,image/jpeg,image/png" style="display:none" onchange="handleT4File(event)"/>
-          <textarea id="t4-input" class="tool-textarea" placeholder="Paste any document text here, or upload a .txt file above..."></textarea>
-          <button id="t4-btn" class="tool-btn" style="background:linear-gradient(135deg,#5b2c6f,#8e44ad);box-shadow:0 4px 14px rgba(142,68,173,0.3)" onclick="runGeneralTranslate()">📃 Translate Document</button>
-          <div id="t4-result" class="tool-result"></div>
-          <button id="t4-download" class="tool-btn" style="display:none;margin-top:10px;background:linear-gradient(135deg,#16a34a,#22c55e)" onclick="downloadGeneralTranslatedPdf()">⬇️ Download as PDF</button>
+          <input id="fitment-model" class="tool-input" placeholder="Machine model (e.g. PC200-8)"/>
+          <input id="fitment-serial" class="tool-input" placeholder="Serial number prefix (optional)"/>
+          <button id="fitment-btn" class="tool-btn" style="background:linear-gradient(135deg,#0f3d3a,#1a5c52);box-shadow:0 4px 14px rgba(26,92,82,0.3)" onclick="runFitmentKit()">🧰 Get Parts & Service Kits</button>
+          <div class="ai-disclaimer">⚠️ AI-generated reference suggestions based on Komatsu model knowledge. Always verify against the official Komatsu EPC before ordering or quoting.</div>
+          <div id="fitment-result" class="tool-result"></div>
         </div>
       </div>
 
@@ -388,6 +386,35 @@ async function runModelLookup(){
     document.getElementById('lookup-result').textContent = reply;
   } catch(e){ alert('Network error. Please try again.'); }
   btn.textContent = '🔍 Find Part Number'; btn.disabled = false;
+}
+
+function quickFillFitment(model){
+  document.getElementById('fitment-model').value = model;
+}
+
+async function runFitmentKit(){
+  var model = document.getElementById('fitment-model').value.trim();
+  var serial = document.getElementById('fitment-serial').value.trim();
+  if(!model){alert('Please enter a machine model');return;}
+  var btn = document.getElementById('fitment-btn');
+  btn.textContent = '⏳ Building parts list...'; btn.disabled = true;
+  try{
+    var content = 'Machine Model: ' + model + (serial ? (' | Serial Number Prefix: ' + serial) : ' | Serial Number Prefix: not provided');
+    var res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        tool: 'fitment_kit',
+        messages: [{role: 'user', content: content}]
+      })
+    });
+    var data = await res.json();
+    var reply = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text : 'Error. Please try again.';
+    reply = reply.replace(/#{1,6} */g, '').trim();
+    document.getElementById('fitment-result').style.display = 'block';
+    document.getElementById('fitment-result').textContent = reply;
+  } catch(e){ alert('Network error. Please try again.'); }
+  btn.textContent = '🧰 Get Parts & Service Kits'; btn.disabled = false;
 }
 
 // Text file upload for PDF tool
@@ -846,266 +873,6 @@ async function downloadTranslatedPdf(){
   btn.textContent = '⬇️ Download as PDF'; btn.disabled = false;
 }
 
-// General Document Translator (Tool 4)
-var lastGeneralDoc = null;
-var lastGeneralLang = '';
-var t4ImageBase64 = null;
-var t4ImageMediaType = null;
-
-async function handleT4File(event){
-  var file = event.target.files[0];
-  if(!file) return;
-
-  var zone = document.getElementById('t4-upload-zone');
-  var zoneText = document.getElementById('t4-upload-text');
-  var textarea = document.getElementById('t4-input');
-  t4ImageBase64 = null;
-  t4ImageMediaType = null;
-
-  zoneText.textContent = '⏳ Reading ' + file.name + '...';
-
-  var name = file.name.toLowerCase();
-
-  try{
-    if(name.endsWith('.txt')){
-      var text = await file.text();
-      textarea.value = text;
-      textarea.style.display = 'block';
-      zone.classList.add('has-file');
-      zoneText.textContent = '✅ ' + file.name + ' loaded';
-
-    } else if(name.endsWith('.docx')){
-      var arrayBuffer = await file.arrayBuffer();
-      var result = await mammoth.extractRawText({arrayBuffer: arrayBuffer});
-      textarea.value = result.value;
-      textarea.style.display = 'block';
-      zone.classList.add('has-file');
-      zoneText.textContent = '✅ ' + file.name + ' loaded (DOCX)';
-
-    } else if(name.endsWith('.doc')){
-      zoneText.textContent = '⚠️ .doc (old format) not supported — please save as .docx and re-upload';
-      zone.classList.remove('has-file');
-
-    } else if(name.endsWith('.pdf')){
-      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-      var arrayBuffer = await file.arrayBuffer();
-      var pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
-      var fullText = '';
-      for(var p = 1; p <= pdf.numPages; p++){
-        var page = await pdf.getPage(p);
-        var content = await page.getTextContent();
-        var pageText = content.items.map(function(item){ return item.str; }).join(' ');
-        fullText += pageText + '\\n\\n';
-      }
-      textarea.value = fullText.trim();
-      textarea.style.display = 'block';
-      zone.classList.add('has-file');
-      zoneText.textContent = '✅ ' + file.name + ' loaded (PDF, ' + pdf.numPages + ' page(s))';
-
-    } else if(name.endsWith('.jpg') || name.endsWith('.jpeg') || name.endsWith('.png')){
-      var reader = new FileReader();
-      var imgResult = await new Promise(function(resolve, reject){
-        reader.onload = function(e){ resolve(e.target.result); };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-      t4ImageBase64 = imgResult.split(',')[1];
-      t4ImageMediaType = file.type;
-      textarea.value = '';
-      textarea.style.display = 'none';
-      zone.classList.add('has-file');
-      zoneText.textContent = '✅ ' + file.name + ' loaded (Image — will be read directly)';
-
-    } else {
-      zoneText.textContent = '⚠️ Unsupported file type. Please use .txt, .docx, .pdf, .jpg, or .png';
-      zone.classList.remove('has-file');
-    }
-  } catch(e){
-    zoneText.textContent = '⚠️ Error reading file: ' + e.message;
-    zone.classList.remove('has-file');
-  }
-}
-
-async function callTranslateApi(content){
-  var res = await fetch('/api/chat', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ tool: 'general_translate', messages: [{role: 'user', content: content}] })
-  });
-  var data = await res.json();
-  var reply = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text : '';
-  return reply.replace(/^```json\\s*/i, '').replace(/```\\s*$/i, '').trim();
-}
-
-// Split text into chunks by character length, breaking at paragraph boundaries when possible
-function chunkTextByLength(text, maxChars){
-  var blocks = text.split(/\\n\\s*\\n/);
-  var chunks = [];
-  var current = '';
-  for(var i = 0; i < blocks.length; i++){
-    var candidate = current ? (current + '\\n\\n' + blocks[i]) : blocks[i];
-    if(candidate.length > maxChars && current){
-      chunks.push(current);
-      current = blocks[i];
-    } else {
-      current = candidate;
-    }
-  }
-  if(current) chunks.push(current);
-  return chunks;
-}
-
-async function runGeneralTranslate(){
-  var text = document.getElementById('t4-input').value.trim();
-  var targetLang = document.getElementById('t4-direction').value;
-  if(!text && !t4ImageBase64){alert('Please paste your document text or upload a file');return;}
-  var btn = document.getElementById('t4-btn');
-  btn.textContent = '⏳ Translating...'; btn.disabled = true;
-  document.getElementById('t4-result').style.display = 'none';
-  document.getElementById('t4-download').style.display = 'none';
-
-  try{
-    if(t4ImageBase64 || text.length <= 3000){
-      // Small document or image — single pass
-      var bodyData = { tool: 'general_translate' };
-      if(t4ImageBase64){
-        bodyData.messages = [{
-          role: 'user',
-          content: [
-            {type: 'image', source: {type: 'base64', media_type: t4ImageMediaType, data: t4ImageBase64}},
-            {type: 'text', text: 'Read the text in this image and translate the full document into ' + targetLang + '.'}
-          ]
-        }];
-      } else {
-        bodyData.messages = [{role: 'user', content: 'Translate this document into ' + targetLang + ':\\n\\n' + text}];
-      }
-      var res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(bodyData)
-      });
-      var data = await res.json();
-      var reply = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text : '';
-      var cleanJson = reply.replace(/^```json\\s*/i, '').replace(/```\\s*$/i, '').trim();
-      var docData;
-      try{
-        docData = JSON.parse(cleanJson);
-      } catch(parseErr){
-        document.getElementById('t4-result').style.display = 'block';
-        document.getElementById('t4-result').style.direction = 'ltr';
-        document.getElementById('t4-result').textContent = '⚠️ Could not parse translation. Please try again.\\n\\nPartial output:\\n' + cleanJson.substring(0, 500);
-        btn.textContent = '📃 Translate Document'; btn.disabled = false;
-        return;
-      }
-      lastGeneralDoc = docData;
-    } else {
-      // Large document — chunked processing
-      document.getElementById('t4-result').style.display = 'block';
-      document.getElementById('t4-result').style.direction = 'ltr';
-      document.getElementById('t4-result').style.fontFamily = "'Inter', sans-serif";
-      document.getElementById('t4-result').textContent = '📋 Large document detected (' + text.length + ' characters). Translating in batches — please wait...';
-
-      var chunks = chunkTextByLength(text, 2500);
-      var allParagraphs = [];
-      var detectedLang = '';
-      var docTitle = '';
-
-      for(var c = 0; c < chunks.length; c++){
-        btn.textContent = '⏳ Translating batch (' + (c+1) + '/' + chunks.length + ')...';
-        document.getElementById('t4-result').textContent = '📋 Large document detected. Translating in batches — please wait...\\n\\nBatch ' + (c+1) + ' of ' + chunks.length + '...\\nParagraphs translated so far: ' + allParagraphs.length;
-        try{
-          var chunkJson = await callTranslateApi('Translate this document chunk into ' + targetLang + ' (this is part ' + (c+1) + ' of ' + chunks.length + ' of a larger document, so do not add extra titles/headers, just translate the content):\\n\\n' + chunks[c]);
-          var chunkData = JSON.parse(chunkJson);
-          if(chunkData.paragraphs && Array.isArray(chunkData.paragraphs)){
-            allParagraphs = allParagraphs.concat(chunkData.paragraphs);
-          }
-          if(!detectedLang && chunkData.detectedSourceLanguage) detectedLang = chunkData.detectedSourceLanguage;
-          if(!docTitle && chunkData.translatedTitle) docTitle = chunkData.translatedTitle;
-        } catch(e){ /* skip chunk silently on error, continue with others */ }
-      }
-
-      if(allParagraphs.length === 0){
-        document.getElementById('t4-result').textContent = '⚠️ Could not translate this document. Please try again or split it manually into smaller sections.';
-        btn.textContent = '📃 Translate Document'; btn.disabled = false;
-        return;
-      }
-
-      lastGeneralDoc = {
-        detectedSourceLanguage: detectedLang || (targetLang === 'Arabic' ? 'English' : 'Arabic'),
-        targetLanguage: targetLang,
-        translatedTitle: docTitle,
-        paragraphs: allParagraphs
-      };
-    }
-
-    lastGeneralLang = targetLang;
-    var isRtl = targetLang === 'Arabic';
-    document.getElementById('t4-result').style.display = 'block';
-    document.getElementById('t4-result').style.direction = isRtl ? 'rtl' : 'ltr';
-    document.getElementById('t4-result').style.fontFamily = isRtl ? "'Noto Sans Arabic', sans-serif" : "'Inter', sans-serif";
-    document.getElementById('t4-result').textContent = '✅ Translated (' + lastGeneralDoc.detectedSourceLanguage + ' ➜ ' + lastGeneralDoc.targetLanguage + ')\\n\\n' + (lastGeneralDoc.translatedTitle || '') + '\\n\\n' + lastGeneralDoc.paragraphs.slice(0, 3).join('\\n\\n') + (lastGeneralDoc.paragraphs.length > 3 ? '\\n\\n...' : '');
-    document.getElementById('t4-download').style.display = 'block';
-  } catch(e){ alert('Network error. Please try again.'); }
-  btn.textContent = '📃 Translate Document'; btn.disabled = false;
-}
-
-async function downloadGeneralTranslatedPdf(){
-  if(!lastGeneralDoc){alert('Please translate a document first.');return;}
-  var d = lastGeneralDoc;
-  var isRtl = lastGeneralLang === 'Arabic';
-  var fontFamily = isRtl ? "'Noto Sans Arabic', sans-serif" : "'Inter', sans-serif";
-  var btn = document.getElementById('t4-download');
-  btn.textContent = '⏳ Generating PDF...'; btn.disabled = true;
-
-  var paragraphsHtml = (d.paragraphs || []).map(function(p){
-    return '<p style="margin-bottom:14px">' + p.replace(/\\n/g, '<br>') + '</p>';
-  }).join('');
-
-  var html = '' +
-  '<div dir="' + (isRtl ? 'rtl' : 'ltr') + '" style="width:760px;padding:40px;background:#fff;direction:' + (isRtl ? 'rtl' : 'ltr') + ';text-align:' + (isRtl ? 'right' : 'left') + ';font-family:' + fontFamily + ';color:#1a1a1a;font-size:14px;line-height:1.9">' +
-    (d.translatedTitle ? '<div style="text-align:center;font-size:18px;font-weight:700;margin-bottom:24px">' + d.translatedTitle + '</div>' : '') +
-    paragraphsHtml +
-  '</div>';
-
-  var renderDiv = document.createElement('div');
-  renderDiv.style.position = 'fixed';
-  renderDiv.style.top = '-9999px';
-  renderDiv.style.left = '0';
-  renderDiv.innerHTML = html;
-  document.body.appendChild(renderDiv);
-
-  try{
-    var canvas = await html2canvas(renderDiv, {scale: 2, backgroundColor: '#ffffff'});
-    document.body.removeChild(renderDiv);
-
-    var imgData = canvas.toDataURL('image/png');
-    var doc = new jspdf.jsPDF({unit: 'pt', format: 'a4'});
-    var pageWidth = doc.internal.pageSize.getWidth();
-    var pageHeight = doc.internal.pageSize.getHeight();
-    var imgWidth = pageWidth - 40;
-    var imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-    var heightLeft = imgHeight;
-    var position = 20;
-
-    doc.addImage(imgData, 'PNG', 20, position, imgWidth, imgHeight);
-    heightLeft -= (pageHeight - 40);
-
-    while(heightLeft > 0){
-      position = heightLeft - imgHeight + 20;
-      doc.addPage();
-      doc.addImage(imgData, 'PNG', 20, position, imgWidth, imgHeight);
-      heightLeft -= (pageHeight - 40);
-    }
-
-    doc.save('translated-document-' + lastGeneralLang.toLowerCase() + '.pdf');
-  } catch(e){
-    if(document.body.contains(renderDiv)) document.body.removeChild(renderDiv);
-    alert('Error generating PDF. Please try again.');
-  }
-
-  btn.textContent = '⬇️ Download as PDF'; btn.disabled = false;
-}
 </script>
 
 
