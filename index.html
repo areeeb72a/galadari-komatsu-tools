@@ -379,37 +379,91 @@ function handleTxtFile(event){
 
 var lastDocData = null;
 
+async function callChatApi(toolName, content){
+  var res = await fetch('/api/chat', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ tool: toolName, messages: [{role: 'user', content: content}] })
+  });
+  var data = await res.json();
+  var reply = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text : '';
+  return reply.replace(/^```json\\s*/i, '').replace(/```\\s*$/i, '').trim();
+}
+
+// Splits raw text lines into chunks of ~N item-lines each, keeping each chunk's line boundaries intact
+function chunkLinesByCount(lines, linesPerChunk){
+  var chunks = [];
+  for(var i = 0; i < lines.length; i += linesPerChunk){
+    chunks.push(lines.slice(i, i + linesPerChunk).join('\\n'));
+  }
+  return chunks;
+}
+
 async function runPdf(){
   var text = document.getElementById('t2-input').value.trim();
   if(!text){alert('Please paste your ERP text dump or upload a file');return;}
   var btn = document.getElementById('t2-btn');
-  btn.textContent = '⏳ Formatting...'; btn.disabled = true;
   document.getElementById('t2-download').style.display = 'none';
   document.getElementById('t2-result').style.display = 'none';
+
+  var lines = text.split('\\n');
+  var itemLineCount = lines.filter(function(l){ return /^\\s*\\d+\\s+\\S/.test(l); }).length;
+
   try{
-    var res = await fetch('/api/chat', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        tool: 'pdf',
-        messages: [{role: 'user', content: text}]
-      })
-    });
-    var data = await res.json();
-    var reply = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text : '';
-    var cleanJson = reply.replace(/^```json\\s*/i, '').replace(/```\\s*$/i, '').trim();
-    var docData;
-    try{
-      docData = JSON.parse(cleanJson);
-    } catch(parseErr){
+    if(itemLineCount <= 35){
+      // Small document — single pass, same as before
+      btn.textContent = '⏳ Formatting...'; btn.disabled = true;
+      var cleanJson = await callChatApi('pdf', text);
+      var docData;
+      try{
+        docData = JSON.parse(cleanJson);
+      } catch(parseErr){
+        document.getElementById('t2-result').style.display = 'block';
+        document.getElementById('t2-result').textContent = '⚠️ Could not parse this document. Please try again.\\n\\nPartial output:\\n' + cleanJson.substring(0, 500);
+        btn.textContent = '📄 Format Document'; btn.disabled = false;
+        return;
+      }
+      lastDocData = docData;
+    } else {
+      // Large document — chunked processing
+      btn.textContent = '⏳ Processing large document...'; btn.disabled = true;
       document.getElementById('t2-result').style.display = 'block';
-      document.getElementById('t2-result').textContent = 'Error parsing response. Raw output:\\n\\n' + reply;
-      btn.textContent = '📄 Format Document'; btn.disabled = false;
-      return;
+      document.getElementById('t2-result').textContent = '📋 Large document detected (' + itemLineCount + ' items). Processing in batches — this may take 1-2 minutes. Please wait...\\n\\nStep 1: Extracting header info...';
+
+      var headerJson = await callChatApi('pdf_header', text);
+      var headerData;
+      try{ headerData = JSON.parse(headerJson); }
+      catch(e){
+        document.getElementById('t2-result').textContent = '⚠️ Could not parse document header. Please try again.';
+        btn.textContent = '📄 Format Document'; btn.disabled = false;
+        return;
+      }
+
+      var rawChunks = chunkLinesByCount(lines, 40);
+      var allItems = [];
+      for(var c = 0; c < rawChunks.length; c++){
+        btn.textContent = '⏳ Processing items (' + (c+1) + '/' + rawChunks.length + ')...';
+        document.getElementById('t2-result').textContent = '📋 Large document detected (' + itemLineCount + ' items). Processing in batches — this may take 1-2 minutes. Please wait...\\n\\nHeader extracted ✅\\nProcessing batch ' + (c+1) + ' of ' + rawChunks.length + '...\\nItems extracted so far: ' + allItems.length;
+        try{
+          var itemsJson = await callChatApi('pdf_items', rawChunks[c]);
+          var itemsArr = JSON.parse(itemsJson);
+          if(Array.isArray(itemsArr)) allItems = allItems.concat(itemsArr);
+        } catch(e){ /* skip chunk silently on parse error, continue with others */ }
+      }
+
+      if(allItems.length === 0){
+        document.getElementById('t2-result').style.display = 'block';
+        document.getElementById('t2-result').textContent = '⚠️ Could not extract any line items. Please check the document format.';
+        btn.textContent = '📄 Format Document'; btn.disabled = false;
+        return;
+      }
+
+      headerData.items = allItems;
+      lastDocData = headerData;
     }
-    lastDocData = docData;
+
     document.getElementById('t2-result').style.display = 'block';
-    document.getElementById('t2-result').textContent = '✅ Document parsed successfully!\\n\\nDocument No: ' + docData.docNo + '\\nCustomer: ' + docData.customerName + '\\nItems: ' + docData.items.length + '\\nNet Amount: ' + docData.currency + ' ' + docData.netAmount + '\\n\\nClick "Download as PDF" below to generate the formatted document.';
+    document.getElementById('t2-result').textContent = '✅ Document parsed successfully!\\n\\nDocument No: ' + lastDocData.docNo + '\\nCustomer: ' + lastDocData.customerName + '\\nItems: ' + lastDocData.items.length + '\\nNet Amount: ' + lastDocData.currency + ' ' + (lastDocData.netAmount || '(check terms section)') + '\\n\\nClick "Download as PDF" below to generate the formatted document.';
     document.getElementById('t2-download').style.display = 'block';
   } catch(e){ alert('Network error. Please try again.'); }
   btn.textContent = '📄 Format Document'; btn.disabled = false;
@@ -618,7 +672,13 @@ async function runTranslate(){
       docData = JSON.parse(cleanJson);
     } catch(parseErr){
       document.getElementById('t3-result').style.display = 'block';
-      document.getElementById('t3-result').textContent = 'Error parsing response. Raw output:\\n\\n' + reply;
+      document.getElementById('t3-result').style.direction = 'ltr';
+      document.getElementById('t3-result').style.fontFamily = "'Inter', sans-serif";
+      if(reply.length < 50 || !cleanJson.trim().endsWith('}')){
+        document.getElementById('t3-result').textContent = '⚠️ This document appears to be too long/complex to translate in one go (many line items). Try splitting it into smaller sections, or contact support if this persists.\\n\\nPartial output received:\\n' + reply.substring(0, 500);
+      } else {
+        document.getElementById('t3-result').textContent = 'Error parsing response. Raw output:\\n\\n' + reply;
+      }
       btn.textContent = '🌐 Translate Quote'; btn.disabled = false;
       return;
     }
