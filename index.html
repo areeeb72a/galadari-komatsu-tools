@@ -926,6 +926,35 @@ async function handleT4File(event){
   }
 }
 
+async function callTranslateApi(content){
+  var res = await fetch('/api/chat', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ tool: 'general_translate', messages: [{role: 'user', content: content}] })
+  });
+  var data = await res.json();
+  var reply = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text : '';
+  return reply.replace(/^```json\\s*/i, '').replace(/```\\s*$/i, '').trim();
+}
+
+// Split text into chunks by character length, breaking at paragraph boundaries when possible
+function chunkTextByLength(text, maxChars){
+  var blocks = text.split(/\\n\\s*\\n/);
+  var chunks = [];
+  var current = '';
+  for(var i = 0; i < blocks.length; i++){
+    var candidate = current ? (current + '\\n\\n' + blocks[i]) : blocks[i];
+    if(candidate.length > maxChars && current){
+      chunks.push(current);
+      current = blocks[i];
+    } else {
+      current = candidate;
+    }
+  }
+  if(current) chunks.push(current);
+  return chunks;
+}
+
 async function runGeneralTranslate(){
   var text = document.getElementById('t4-input').value.trim();
   var targetLang = document.getElementById('t4-direction').value;
@@ -934,44 +963,87 @@ async function runGeneralTranslate(){
   btn.textContent = '⏳ Translating...'; btn.disabled = true;
   document.getElementById('t4-result').style.display = 'none';
   document.getElementById('t4-download').style.display = 'none';
+
   try{
-    var bodyData = { tool: 'general_translate' };
-    if(t4ImageBase64){
-      bodyData.messages = [{
-        role: 'user',
-        content: [
-          {type: 'image', source: {type: 'base64', media_type: t4ImageMediaType, data: t4ImageBase64}},
-          {type: 'text', text: 'Read the text in this image and translate the full document into ' + targetLang + '.'}
-        ]
-      }];
+    if(t4ImageBase64 || text.length <= 3000){
+      // Small document or image — single pass
+      var bodyData = { tool: 'general_translate' };
+      if(t4ImageBase64){
+        bodyData.messages = [{
+          role: 'user',
+          content: [
+            {type: 'image', source: {type: 'base64', media_type: t4ImageMediaType, data: t4ImageBase64}},
+            {type: 'text', text: 'Read the text in this image and translate the full document into ' + targetLang + '.'}
+          ]
+        }];
+      } else {
+        bodyData.messages = [{role: 'user', content: 'Translate this document into ' + targetLang + ':\\n\\n' + text}];
+      }
+      var res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(bodyData)
+      });
+      var data = await res.json();
+      var reply = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text : '';
+      var cleanJson = reply.replace(/^```json\\s*/i, '').replace(/```\\s*$/i, '').trim();
+      var docData;
+      try{
+        docData = JSON.parse(cleanJson);
+      } catch(parseErr){
+        document.getElementById('t4-result').style.display = 'block';
+        document.getElementById('t4-result').style.direction = 'ltr';
+        document.getElementById('t4-result').textContent = '⚠️ Could not parse translation. Please try again.\\n\\nPartial output:\\n' + cleanJson.substring(0, 500);
+        btn.textContent = '📃 Translate Document'; btn.disabled = false;
+        return;
+      }
+      lastGeneralDoc = docData;
     } else {
-      bodyData.messages = [{role: 'user', content: 'Translate this document into ' + targetLang + ':\\n\\n' + text}];
-    }
-    var res = await fetch('/api/chat', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(bodyData)
-    });
-    var data = await res.json();
-    var reply = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text : '';
-    var cleanJson = reply.replace(/^```json\\s*/i, '').replace(/```\\s*$/i, '').trim();
-    var docData;
-    try{
-      docData = JSON.parse(cleanJson);
-    } catch(parseErr){
+      // Large document — chunked processing
       document.getElementById('t4-result').style.display = 'block';
       document.getElementById('t4-result').style.direction = 'ltr';
-      document.getElementById('t4-result').textContent = '⚠️ Could not parse translation. Raw output:\\n\\n' + reply.substring(0, 500);
-      btn.textContent = '📃 Translate Document'; btn.disabled = false;
-      return;
+      document.getElementById('t4-result').style.fontFamily = "'Inter', sans-serif";
+      document.getElementById('t4-result').textContent = '📋 Large document detected (' + text.length + ' characters). Translating in batches — please wait...';
+
+      var chunks = chunkTextByLength(text, 2500);
+      var allParagraphs = [];
+      var detectedLang = '';
+      var docTitle = '';
+
+      for(var c = 0; c < chunks.length; c++){
+        btn.textContent = '⏳ Translating batch (' + (c+1) + '/' + chunks.length + ')...';
+        document.getElementById('t4-result').textContent = '📋 Large document detected. Translating in batches — please wait...\\n\\nBatch ' + (c+1) + ' of ' + chunks.length + '...\\nParagraphs translated so far: ' + allParagraphs.length;
+        try{
+          var chunkJson = await callTranslateApi('Translate this document chunk into ' + targetLang + ' (this is part ' + (c+1) + ' of ' + chunks.length + ' of a larger document, so do not add extra titles/headers, just translate the content):\\n\\n' + chunks[c]);
+          var chunkData = JSON.parse(chunkJson);
+          if(chunkData.paragraphs && Array.isArray(chunkData.paragraphs)){
+            allParagraphs = allParagraphs.concat(chunkData.paragraphs);
+          }
+          if(!detectedLang && chunkData.detectedSourceLanguage) detectedLang = chunkData.detectedSourceLanguage;
+          if(!docTitle && chunkData.translatedTitle) docTitle = chunkData.translatedTitle;
+        } catch(e){ /* skip chunk silently on error, continue with others */ }
+      }
+
+      if(allParagraphs.length === 0){
+        document.getElementById('t4-result').textContent = '⚠️ Could not translate this document. Please try again or split it manually into smaller sections.';
+        btn.textContent = '📃 Translate Document'; btn.disabled = false;
+        return;
+      }
+
+      lastGeneralDoc = {
+        detectedSourceLanguage: detectedLang || (targetLang === 'Arabic' ? 'English' : 'Arabic'),
+        targetLanguage: targetLang,
+        translatedTitle: docTitle,
+        paragraphs: allParagraphs
+      };
     }
-    lastGeneralDoc = docData;
+
     lastGeneralLang = targetLang;
     var isRtl = targetLang === 'Arabic';
     document.getElementById('t4-result').style.display = 'block';
     document.getElementById('t4-result').style.direction = isRtl ? 'rtl' : 'ltr';
     document.getElementById('t4-result').style.fontFamily = isRtl ? "'Noto Sans Arabic', sans-serif" : "'Inter', sans-serif";
-    document.getElementById('t4-result').textContent = '✅ Translated (' + docData.detectedSourceLanguage + ' ➜ ' + docData.targetLanguage + ')\\n\\n' + (docData.translatedTitle || '') + '\\n\\n' + docData.paragraphs.slice(0, 3).join('\\n\\n') + (docData.paragraphs.length > 3 ? '\\n\\n...' : '');
+    document.getElementById('t4-result').textContent = '✅ Translated (' + lastGeneralDoc.detectedSourceLanguage + ' ➜ ' + lastGeneralDoc.targetLanguage + ')\\n\\n' + (lastGeneralDoc.translatedTitle || '') + '\\n\\n' + lastGeneralDoc.paragraphs.slice(0, 3).join('\\n\\n') + (lastGeneralDoc.paragraphs.length > 3 ? '\\n\\n...' : '');
     document.getElementById('t4-download').style.display = 'block';
   } catch(e){ alert('Network error. Please try again.'); }
   btn.textContent = '📃 Translate Document'; btn.disabled = false;
